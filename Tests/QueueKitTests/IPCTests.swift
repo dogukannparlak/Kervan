@@ -29,6 +29,10 @@ import Testing
 
         let badURL = try client.request(Request(cmd: .add, url: "ftp://x"))
         #expect(!badURL.ok)
+
+        // FakeExecutor'ün dosyası diskte yok: reveal açık hata vermeli, Finder açılmamalı.
+        let reveal = try client.request(Request(cmd: .reveal, ids: [id]))
+        #expect(!reveal.ok && reveal.error?.contains("dosya yok") == true)
     }
 
     @Test func socketPathLengthIsChecked() {

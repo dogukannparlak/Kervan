@@ -87,6 +87,18 @@ kullanır); eklentiye köprüde yalnız `ping/add/list` açık; eklenti kimliği
 **Doğukan'ın Brave'inde denenmedi:** eklentiyi elle yükleyip gerçek bir sitede denemesi gerekiyor
 (sağ tık menüsü ve bildirimler headless'ta denenemedi).
 
+### M3.5 — IDM tarzı video üstü düğme + eklentiden kontrol ✅ (2026-10-23)
+İstek (Doğukan): "durdurma iptal vs de olsun ve IDM'deki gibi sayfa yenilenince videonun üstünde çıksın".
+- `content.js`: videonun sağ üst köşesinde "Bu videoyu indir" + seçenek menüsü
+- popup: kuyrukta Durdur/Devam/İptal/Yeniden/Sil/Klasörde göster, ilerleme çubuğu, düğmeyi kapatma
+- servis: `reveal` komutu; köprü kontrol komutlarına açıldı
+
+**Sonuç:** headless Brave'de gerçek fare tıklamalarıyla: düğme 720×405 videonun köşesinde çıktı,
+menüde "Bu video dosyası" + "Sayfadan indir", seçim kuyruğa gitti ve indi. Popup'ta HLS öğesi
+Durdur → paused, Devam → downloading, İptal → canceled, Sil → kuyruktan çıktı. Eklenti testleri 9.
+**Denenmedi:** gerçek sitelerde (Twitter, Instagram vb. kendi oynatıcılarıyla) düğmenin konumu;
+tam ekran; `reveal` canlı (Finder açacağı için).
+
 ## M4 — SwiftUI app MVP
 - `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır
 - ekranlar: Ekle (URL + preset + klasör), Kuyruk listesi (başlık, çubuk, hız, ETA, düğmeler),

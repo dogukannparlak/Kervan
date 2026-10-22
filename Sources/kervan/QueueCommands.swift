@@ -137,6 +137,13 @@ struct Remove: ItemActionCommand {
     @Argument var ids: [Int64]
 }
 
+struct Reveal: ItemActionCommand {
+    static let configuration = CommandConfiguration(abstract: "Bitmiş dosyayı Finder'da gösterir.")
+    static let command = Request.Command.reveal
+    static let verb = "Finder'da"
+    @Argument var ids: [Int64]
+}
+
 struct Log: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Bir öğenin araç log'unu gösterir.")
 

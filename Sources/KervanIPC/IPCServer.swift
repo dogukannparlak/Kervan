@@ -94,6 +94,17 @@ public final class IPCServer: Sendable {
                 guard let ids = request.ids, !ids.isEmpty else { return .failure("Öğe numarası gerekli.") }
                 let action = QueueAction(rawValue: request.cmd.rawValue)!
                 return Response(ok: true, items: try await engine.apply(action, to: ids))
+            case .reveal:
+                guard let id = request.ids?.first else { return .failure("Öğe numarası gerekli.") }
+                guard let item = await engine.item(id) else { throw QueueError.notFound(id) }
+                guard let path = item.outputPath, FileManager.default.fileExists(atPath: path) else {
+                    return .failure("#\(id) için dosya yok (henüz bitmedi ya da taşındı).")
+                }
+                let process = Process()
+                process.executableURL = URL(filePath: "/usr/bin/open")
+                process.arguments = ["-R", path]
+                try process.run()
+                return Response(ok: true, items: [item])
             case .subscribe:
                 return .failure("subscribe burada işlenmez.")
             }

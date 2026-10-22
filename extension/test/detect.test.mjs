@@ -71,3 +71,26 @@ test('blob: adresleri sayfa adresine düşer', () => {
   assert.equal(downloadableUrl('blob:https://site/uuid', 'https://site/page'), 'https://site/page');
   assert.equal(downloadableUrl('https://cdn.x/v.mp4', 'https://site/page'), 'https://cdn.x/v.mp4');
 });
+
+test('video üstü menü: dosya, akışlar, sayfa sırası', async () => {
+  const { buildCandidates } = await import('../detect.js');
+  const options = buildCandidates({
+    media: [
+      { url: 'https://cdn.x/master.m3u8', kind: 'hls' },
+      { url: 'https://cdn.x/v.mp4', kind: 'file', ext: 'mp4', size: 5_000_000 },
+    ],
+    srcUrl: 'https://cdn.x/v.mp4',
+    frameUrl: 'https://player.site/embed/1',
+    tabUrl: 'https://site/page',
+    tabTitle: 'Başlık',
+  });
+  assert.deepEqual(options.map((o) => o.request.url), ['https://cdn.x/v.mp4', 'https://cdn.x/master.m3u8', 'https://player.site/embed/1']);
+  assert.ok(options.every((o) => o.request.pageUrl === 'https://site/page' && o.request.title === 'Başlık'));
+});
+
+test('YouTube gibi blob oynatıcıda tek seçenek: sayfa', async () => {
+  const { buildCandidates } = await import('../detect.js');
+  const options = buildCandidates({ srcUrl: 'blob:https://www.youtube.com/x', frameUrl: 'https://www.youtube.com/watch?v=1', tabUrl: 'https://www.youtube.com/watch?v=1' });
+  assert.equal(options.length, 1);
+  assert.equal(options[0].request.url, 'https://www.youtube.com/watch?v=1');
+});

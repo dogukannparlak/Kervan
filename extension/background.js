@@ -1,5 +1,5 @@
 import {
-  addMedia, classifyResponse, downloadableUrl, emptyTab, hideVariants, parseMasterPlaylist, visibleMedia,
+  addMedia, buildCandidates, classifyResponse, downloadableUrl, emptyTab, hideVariants, parseMasterPlaylist, visibleMedia,
 } from './detect.js';
 
 const HOST = 'com.dogukan.kervan';
@@ -154,9 +154,24 @@ chrome.notifications.onButtonClicked.addListener(async (id) => {
 
 // --- Açılır pencere ile konuşma ---
 
-chrome.runtime.onMessage.addListener((message, _sender, reply) => {
+const CONTROL_COMMANDS = ['pause', 'resume', 'cancel', 'retry', 'remove', 'reveal'];
+
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
   (async () => {
-    if (message.type === 'state') {
+    if (message.type === 'candidates' && sender.tab) {
+      // Video üstü düğme (content.js) soruyor: bu sekmede neler indirilebilir?
+      const state = await loadTab(sender.tab.id);
+      const { preset } = await preferences();
+      reply({
+        preset,
+        options: buildCandidates({
+          media: visibleMedia(state), srcUrl: message.srcUrl, frameUrl: message.frameUrl,
+          tabUrl: sender.tab.url, tabTitle: sender.tab.title,
+        }),
+      });
+    } else if (message.type === 'control' && CONTROL_COMMANDS.includes(message.cmd)) {
+      reply(await send({ cmd: message.cmd, ids: message.ids }));
+    } else if (message.type === 'state') {
       const state = await loadTab(message.tabId);
       reply({ pageUrl: state.pageUrl, title: state.title, media: visibleMedia(state) });
     } else if (message.type === 'add') {

@@ -60,4 +60,14 @@ li .meta { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: 
 #result { min-height: 1em; margin: 10px 0 0; }
 #result.error { color: var(--error); }
 .choice { display: flex; gap: 6px; margin-top: 6px; }
+
+.actions { display: flex; gap: 4px; flex-shrink: 0; }
+.actions button { padding: 2px 7px; font-size: 11px; }
+.actions button.danger:hover { border-color: var(--error); color: var(--error); }
+.bar { height: 3px; border-radius: 2px; background: var(--line); margin-top: 4px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+.state-failed .meta { color: var(--error); }
+
+footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+footer label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .choice input { flex: 1; font: inherit; padding: 3px 6px; }

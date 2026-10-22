@@ -148,7 +148,14 @@ Brave sekmesi ──webRequest (yalnız gözlem)──→ background.js ──st
 - Gönderilen istek: `url`, `referer` (sayfa), `userAgent` (tarayıcı), `title` (sekme başlığı →
   dosya adı ipucu; yalnız genel çıkarıcıda ve düz dosyada kullanılır, YouTube gibi sitelerde site başlığı).
 - Aynı klasörde aynı ad varsa (diskte ya da kuyrukta) " (2)", " (3)" eklenir.
-- `kervan-native-host`: 4 bayt uzunluk + JSON; yalnız `ping`, `add`, `list`. Manifest
+- `content.js` (bütün sayfa ve çerçevelerde): görünür her `<video>` (en az 240×135) için sağ üst
+  köşede kapalı Shadow DOM içinde "İndir" düğmesi; tam ekranda düğme tam ekran öğesine taşınır.
+  Menü seçenekleri `buildCandidates` (detect.js) ile arka planda kurulur: videonun http dosyası,
+  yakalanan akışlar, sayfa/çerçeve adresi. `blob:` oynatıcılarda (YouTube) tek seçenek sayfadır.
+- Popup kuyruk satırında duruma göre eylemler: pause/resume/cancel/retry/remove ve `reveal`
+  (servis `open -R` ile Finder'da gösterir; yol istekten değil kuyruktan alınır).
+- `kervan-native-host`: 4 bayt uzunluk + JSON; `subscribe` dışındaki bütün komutlar (köprüyü yalnız
+  `allowed_origins`'teki eklenti çağırabilir). Manifest
   `~/Library/Application Support/<tarayıcı>/NativeMessagingHosts/com.dogukan.kervan.json`,
   `allowed_origins` tek kimlik. `kervan extension install|uninstall`.
 - Çerezler eklentiden alınmaz; yt-dlp gerekirse `--cookies-from-browser brave` ile okur.

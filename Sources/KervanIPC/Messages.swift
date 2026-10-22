@@ -2,7 +2,7 @@ import EngineCore
 import Foundation
 import QueueKit
 
-public let kervanVersion = "0.3.0"
+public let kervanVersion = "0.4.0"
 
 /// Kervan'ın dosya yerleri. `KERVAN_HOME` ile değiştirilebilir (geliştirme/test).
 public struct KervanPaths: Sendable {
@@ -40,6 +40,8 @@ public struct Request: Codable, Sendable {
     public enum Command: String, Codable, Sendable {
         case ping, add, list, log, subscribe
         case pause, resume, cancel, retry, remove
+        /// Bitmiş dosyayı Finder'da gösterir (yol istekten değil kuyruktan alınır).
+        case reveal
     }
 
     public var cmd: Command

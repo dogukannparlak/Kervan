@@ -136,3 +136,41 @@ export function downloadableUrl(candidate, pageUrl) {
   if (candidate && /^https?:/i.test(candidate)) return candidate;
   return pageUrl;
 }
+
+export function shortUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const file = parsed.pathname.split('/').filter(Boolean).pop() || '';
+    return file ? `${parsed.hostname} · ${decodeURIComponent(file)}` : parsed.hostname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Video üstü düğmenin menüsü: önce videonun kendi dosyası (http ise), sonra yakalanan akışlar
+ * (yeniden eskiye), en sonda "sayfadan indir" (yt-dlp; iframe içindeyse çerçevenin adresi).
+ * Her seçenek kuyruğa gönderilecek isteği taşır; Referer üst sekmenin adresidir.
+ */
+export function buildCandidates({ media = [], srcUrl, frameUrl, tabUrl, tabTitle }) {
+  const isHttp = (url) => Boolean(url) && /^https?:/i.test(url);
+  const base = { pageUrl: tabUrl, title: tabTitle };
+  const options = [];
+  if (isHttp(srcUrl)) {
+    options.push({ label: 'Bu video dosyası', detail: shortUrl(srcUrl), request: { ...base, url: srcUrl } });
+  }
+  for (const item of media.slice().reverse()) {
+    if (item.url === srcUrl) continue;
+    const size = item.size ? ` · ${formatBytes(item.size)}` : '';
+    options.push({ label: `${mediaLabel(item)}${size}`, detail: shortUrl(item.url), request: { ...base, url: item.url } });
+  }
+  const page = isHttp(frameUrl) ? frameUrl : tabUrl;
+  if (isHttp(page)) {
+    options.push({
+      label: 'Sayfadan indir (site tanınırsa en iyi kalite)',
+      detail: new URL(page).hostname,
+      request: { ...base, url: page },
+    });
+  }
+  return options;
+}

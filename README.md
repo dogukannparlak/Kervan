@@ -35,9 +35,13 @@ Seçenekler (`add`/`get`): `-p best|1080p|720p|audio`, `-d <klasör>` (varsayıl
 2. `brave://extensions` → sağ üstte **Geliştirici modu** → **Paketlenmemiş öğe yükle** → bu repodaki `extension/`
 3. Kimlik `ifkabkcjdlkjbgijfnphgecoggfjdgek` görünmeli.
 
-Kullanım: video oynayan sayfada araç çubuğundaki **K** simgesinin rozeti yakalanan medya sayısını
-gösterir; açılan pencereden **İndir** (yakalanan akış) ya da **Sayfayı indir** (yt-dlp, site
-destekliyorsa en iyi yol). Sağ tık → "Kervan ile indir" bağlantı, video ve sayfa için de var.
+Kullanım:
+- **Videonun sağ üst köşesinde "Bu videoyu indir"** düğmesi çıkar (IDM gibi). Tıklayınca menü: videonun
+  dosyası, yakalanan akışlar (HLS/DASH) ve "Sayfadan indir" (yt-dlp). Tek seçenek varsa doğrudan ekler.
+  "×" o video için gizler; popup'taki kutucuk hepsini kapatır.
+- Araç çubuğundaki **K** simgesi: rozet yakalanan medya sayısı; pencerede **Sayfayı indir**, yakalanan
+  medya için **İndir**, kuyrukta **Durdur / Devam / İptal / Yeniden / Sil / Klasörde göster**.
+- Sağ tık → "Kervan ile indir": bağlantı, video ve sayfa için.
 Eklenti testleri: `node --test extension/test/`.
 
 ---

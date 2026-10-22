@@ -3,9 +3,10 @@ import KervanIPC
 
 // Brave/Chrome Native Messaging köprüsü: tarayıcı bu programı eklenti başına başlatır,
 // stdin'den 4 bayt uzunluk (yerel bayt sırası) + JSON okur, aynı biçimde yanıt yazar.
-// İstekler kervand soketine iletilir. Eklentiye yalnız ping/add/list açıktır; silme, iptal vb. yok.
+// İstekler kervand soketine iletilir. Köprüyü yalnız manifest'teki eklenti kimliği çağırabilir
+// (`allowed_origins`); akış isteyen `subscribe` dışındaki komutlar açıktır.
 
-let allowed: Set<Request.Command> = [.ping, .add, .list]
+let allowed: Set<Request.Command> = [.ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal]
 let input = FileHandle.standardInput
 let output = FileHandle.standardOutput
 
