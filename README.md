@@ -4,6 +4,7 @@
 > **Durum: v0.5 (2026-10-23)** — menü çubuğu uygulaması + arka plan servisi + Brave eklentisi.
 > Videonun üstünde "İndir" düğmesi ve kalite seçimi, kuyruk (durdur/devam/iptal), bildirim, pano izleme,
 > tür klasörleri, altyazı, MP3, yt-dlp'nin kendiliğinden güncellenmesi.
+> Sıradaki işler: [`docs/YAPILACAKLAR.md`](docs/YAPILACAKLAR.md).
 
 ## Hızlı başlangıç
 
