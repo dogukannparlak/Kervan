@@ -20,12 +20,14 @@ kervan list                            # ls; --all bitmişleri de gösterir
 kervan watch                           # canlı tablo
 kervan pause 3 · resume 3 · cancel 3 · retry 3 · rm 3
 kervan log 3 -n 50
+kervan formats <url>                   # kalite seçenekleri ve yaklaşık boyutlar (-p 720p gibi kullan)
+kervan reveal 3                        # bitmiş dosyayı Finder'da göster
 kervan get <url>                       # servissiz, ön planda tek indirme
 kervan doctor                          # araçlar + servis durumu
 kervan service status | uninstall
 ```
 
-Seçenekler (`add`/`get`): `-p best|1080p|720p|audio`, `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
+Seçenekler (`add`/`get`): `-p best|1080p|720p|audio` ya da herhangi bir yükseklik (`480p`, `1440p`, `2160p`), `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
 `--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi), `--referer <sayfa>`,
 `--name <dosya adı>`.
 
@@ -37,11 +39,13 @@ Seçenekler (`add`/`get`): `-p best|1080p|720p|audio`, `-d <klasör>` (varsayıl
 
 Kullanım:
 - **Videonun sağ üst köşesinde "Bu videoyu indir"** düğmesi çıkar (IDM gibi). Tıklayınca menü: videonun
-  dosyası, yakalanan akışlar (HLS/DASH) ve "Sayfadan indir" (yt-dlp). Tek seçenek varsa doğrudan ekler.
+  dosyası, yakalanan akışlar (HLS/DASH) ve "Sayfadan indir" (yt-dlp). Akış ya da sayfa seçilince **kalite
+  listesi** gelir ("1080p60 · ~268 MB", "Yalnız ses"); YouTube gibi tek seçenekli sayfada doğrudan kalite listesi.
   "×" o video için gizler; popup'taki kutucuk hepsini kapatır.
 - Araç çubuğundaki **K** simgesi: rozet yakalanan medya sayısı; pencerede **Sayfayı indir**, yakalanan
   medya için **İndir**, kuyrukta **Durdur / Devam / İptal / Yeniden / Sil / Klasörde göster**.
 - Sağ tık → "Kervan ile indir": bağlantı, video ve sayfa için.
+- İndirme bitince ya da hata verince **macOS bildirimi** gelir (playlist'te liste bitince bir kez).
 Eklenti testleri: `node --test extension/test/`.
 
 ---

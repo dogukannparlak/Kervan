@@ -46,7 +46,8 @@ let package = Package(
         ),
         .testTarget(
             name: "EngineCoreTests",
-            dependencies: ["EngineCore"]
+            dependencies: ["EngineCore"],
+            resources: [.copy("Fixtures")]
         ),
         .testTarget(
             name: "QueueKitTests",

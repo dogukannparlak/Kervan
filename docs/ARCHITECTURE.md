@@ -160,6 +160,18 @@ Brave sekmesi ──webRequest (yalnız gözlem)──→ background.js ──st
   `allowed_origins` tek kimlik. `kervan extension install|uninstall`.
 - Çerezler eklentiden alınmaz; yt-dlp gerekirse `--cookies-from-browser brave` ile okur.
 
+## 4c. Kalite listesi ve bildirimler
+
+- `kervan formats` / köprü `formats`: `yt-dlp -J --no-playlist` formatlarından yükseklik başına seçenek;
+  boyut, yt-dlp'nin seçeceğine yakın biçimden (doğrudan https > m3u8; ≤1080'de H.264) + en iyi m4a ses.
+  Bitti kriteri: Big Buck Bunny 1080p tahmini 267,9 MB, gerçek 268,3 MB (testli fixture).
+- `PresetStore.named("480p")` gibi yükseklik adları hazır preset yoksa üretilir (≤1080 mp4, üstü mkv).
+- Bildirim: servis `Kervan Agent.app` paketinden çalışır (LSUIElement, ad-hoc imzalı); bildirim
+  `osascript display notification` ile. UserNotifications denendi: ad-hoc ya da Apple Development imzalı,
+  launchd ya da `open` ile başlatılmış, NSApplication kayıtlı her durumda macOS 27 "Notifications are not
+  allowed for this application" döndü (2026-10-23). Bedeli: bildirime tıklayınca dosya açılmaz.
+- HLS ilerlemesi: yt-dlp tahmin ve kalan süreyi ondalıklı yazar ("71900.0"); tahmin yoksa parça oranı.
+
 ## 5. Eşzamanlılık modeli
 
 - Swift 6 strict concurrency. `QueueKit` bir actor; her aktif indirme kendi `Task`'ı.

@@ -12,7 +12,7 @@ struct KervanCommand: AsyncParsableCommand {
         version: kervanVersion,
         subcommands: [
             Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Reveal.self, Log.self,
-            Get.self, Probe.self, Service.self, Extension.self, Doctor.self, Presets.self,
+            Get.self, Probe.self, Formats.self, Service.self, Extension.self, Doctor.self, Presets.self,
         ]
     )
 }
@@ -131,6 +131,28 @@ struct Probe: AsyncParsableCommand {
             printEntries(info.entries ?? [])
         }
         if let browser = resolved.cookiesBrowser { print("çerez: \(browser)") }
+    }
+}
+
+struct Formats: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Videonun kalite seçeneklerini ve yaklaşık boyutlarını listeler.")
+
+    @Argument var url: String
+
+    @Option(help: "Tarayıcı çerezleri: auto, none ya da tarayıcı adı.")
+    var cookies = "auto"
+
+    func run() async throws {
+        let list = try await Toolbox().resolver.qualities(try parseURL(url), cookies: CookiePolicy(cookies), context: RequestContext())
+        if let title = list.title { print(title) }
+        guard !list.options.isEmpty else {
+            print("Kalite bilgisi yok (çok videolu sayfa olabilir: kervan probe).")
+            return
+        }
+        for option in list.options {
+            let size = option.size.map { "~" + Format.bytes($0) } ?? "?"
+            print("  \(option.label.padding(toLength: 10, withPad: " ", startingAt: 0)) \(size.padding(toLength: 10, withPad: " ", startingAt: 0)) -p \(option.preset)")
+        }
     }
 }
 

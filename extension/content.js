@@ -32,7 +32,8 @@
       position: fixed; min-width: 240px; max-width: 360px; pointer-events: auto; padding: 4px;
       background: #fff; color: #1d1d1f; border-radius: 9px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
     }
-    .menu .head { padding: 6px 8px 4px; color: #6e6e73; font-size: 11px; }
+    .menu .head { padding: 6px 8px 4px; color: #6e6e73; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .menu { max-height: 70vh; overflow-y: auto; }
     .menu button { all: unset; display: block; width: 100%; padding: 7px 8px; border-radius: 6px; cursor: pointer; box-sizing: border-box; }
     .menu button:hover, .menu button:focus-visible { background: #f2f2f5; }
     .menu .label { font-weight: 600; }
@@ -167,10 +168,33 @@
     });
     if (!openMenu || openMenu.element !== menu) return;
     const options = reply?.options || [];
-    if (options.length === 1) return send(menu, options[0].request);
-    menu.querySelector('.head').textContent = `Kervan ile indir · ${reply?.preset || ''}`;
+    const choose = (candidate) => (candidate.kind === 'file' ? send(menu, candidate.request) : showQualities(menu, candidate.request));
+    if (options.length === 1) return choose(options[0]);
+    menu.querySelector('.head').textContent = 'Kervan ile indir';
     menu.querySelector('.status')?.remove();
-    for (const candidate of options) option(menu, candidate.label, candidate.detail, () => send(menu, candidate.request));
+    for (const candidate of options) option(menu, candidate.label, candidate.detail, () => choose(candidate));
+    positionMenu();
+  }
+
+  /** Akış ya da sayfa için kalite listesi (yt-dlp formatları); alınamazsa varsayılan kaliteyle indirme seçeneği. */
+  async function showQualities(menu, request) {
+    menu.querySelector('.head').textContent = 'Kalite seç';
+    status(menu, 'Kaliteler alınıyor…');
+    const reply = await chrome.runtime.sendMessage({ type: 'qualities', request });
+    if (!openMenu || openMenu.element !== menu) return;
+    menu.querySelector('.status')?.remove();
+    if (reply?.title) menu.querySelector('.head').textContent = `Kalite seç · ${reply.title}`;
+    const rows = reply?.ok ? reply.rows : [];
+    for (const row of rows) option(menu, row.label, row.detail, () => send(menu, { ...request, preset: row.preset }));
+    if (!rows.length) {
+      if (!reply?.ok) {
+        const line = document.createElement('div');
+        line.className = 'status error';
+        line.textContent = reply?.error || 'Kalite bilgisi alınamadı.';
+        menu.append(line);
+      }
+      option(menu, 'Varsayılan kaliteyle indir', '', () => send(menu, request));
+    }
     positionMenu();
   }
 

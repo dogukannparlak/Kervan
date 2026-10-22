@@ -112,7 +112,7 @@ public struct YtDlpAdapter: Sendable {
             "-f", preset.format,
             "-P", directory.path,
             "-o", template,
-            "--progress-template", "download:\(YtDlpProgressTracker.downloadPrefix)|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s",
+            "--progress-template", "download:\(YtDlpProgressTracker.downloadPrefix)|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s|%(progress.fragment_index)s|%(progress.fragment_count)s",
             "--progress-template", "postprocess:\(YtDlpProgressTracker.postprocessPrefix)|%(progress.status)s|%(progress.postprocessor)s",
             "--print", "video:\(YtDlpProgressTracker.infoPrefix)|%(format_id)s|%(filesize,filesize_approx)s",
             "--print", "after_move:\(YtDlpProgressTracker.filePrefix)|%(filepath)s",
@@ -166,15 +166,20 @@ struct YtDlpProgressTracker {
             parts = fields[1].split(separator: "+").count
             finishedParts = 0
             finishedBytes = 0
-            approximateTotal = Int64(fields[2])
+            approximateTotal = Self.bytes(fields[2])
             return .progress(ProgressEvent(phase: .download, bytesTotalEstimate: approximateTotal, message: partMessage))
 
         case Self.downloadPrefix where fields.count >= 7:
-            let downloaded = Int64(fields[2]) ?? 0
-            let partTotal = Int64(fields[3]) ?? Int64(fields[4])
+            // HLS/DASH'te tahmin ve kalan süre ondalıklı gelir ("71900.0", "121.98"); hepsi Double'dan okunur.
+            let downloaded = Self.bytes(fields[2]) ?? 0
+            var estimate = Self.bytes(fields[4])
+            if estimate == nil, fields.count >= 9, let index = Double(fields[7]), let count = Double(fields[8]), index > 0, count > 0 {
+                estimate = Int64(Double(downloaded) * count / index)  // parça oranından kaba tahmin
+            }
+            let partTotal = Self.bytes(fields[3]) ?? estimate
             var event = ProgressEvent(phase: .download, bytesDone: finishedBytes + downloaded,
-                                      speed: Double(fields[5]), eta: Int(fields[6]), message: partMessage)
-            if parts == 1, let total = Int64(fields[3]) {
+                                      speed: Double(fields[5]), eta: Double(fields[6]).map { Int($0.rounded()) }, message: partMessage)
+            if parts == 1, let total = Self.bytes(fields[3]) {
                 event.bytesTotal = total
             } else if let approximateTotal {
                 event.bytesTotalEstimate = max(approximateTotal, event.bytesDone)
@@ -197,6 +202,10 @@ struct YtDlpProgressTracker {
         default:
             return nil
         }
+    }
+
+    static func bytes(_ field: String) -> Int64? {
+        Double(field).flatMap { $0.isFinite && $0 >= 0 ? Int64($0) : nil }
     }
 
     private var partMessage: String? {

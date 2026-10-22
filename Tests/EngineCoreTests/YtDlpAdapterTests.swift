@@ -65,6 +65,23 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
         #expect(event == .progress(ProgressEvent(phase: .download, bytesDone: 300, bytesTotalEstimate: 1200, speed: 100, eta: 9)))
     }
 
+    /// 2026-10-23, yt-dlp 2026.08.19, Apple bipbop HLS: tahmin ve eta ondalıklı.
+    @Test func hlsFloatEstimateAndEta() {
+        var tracker = YtDlpProgressTracker()
+        let event = tracker.consume(OutputLine(.stdout, "KERVAN_DL|downloading|671250|NA|38573366.66666667|282500.27|121.98|2|100"))
+        #expect(event == .progress(ProgressEvent(phase: .download, bytesDone: 671250, bytesTotalEstimate: 38573366, speed: 282500.27, eta: 122)))
+    }
+
+    @Test func fragmentRatioWhenNoEstimate() {
+        var tracker = YtDlpProgressTracker()
+        guard case .progress(let event)? = tracker.consume(OutputLine(.stdout, "KERVAN_DL|downloading|5000|NA|NA|NA|NA|5|100")) else {
+            Issue.record("ilerleme yok")
+            return
+        }
+        #expect(event.bytesTotalEstimate == 100_000)
+        #expect(event.fraction == 0.05)
+    }
+
     @Test func otherLinesAreNotParsed() {
         var tracker = YtDlpProgressTracker()
         #expect(tracker.consume(OutputLine(.stderr, "WARNING: something")) == nil)

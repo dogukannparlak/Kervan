@@ -88,6 +88,23 @@ test('video üstü menü: dosya, akışlar, sayfa sırası', async () => {
   assert.ok(options.every((o) => o.request.pageUrl === 'https://site/page' && o.request.title === 'Başlık'));
 });
 
+test('menü seçenek türleri ve kalite satırları', async () => {
+  const { buildCandidates, qualityRows } = await import('../detect.js');
+  const kinds = buildCandidates({
+    media: [{ url: 'https://cdn.x/m.m3u8', kind: 'hls' }],
+    srcUrl: 'https://cdn.x/v.mp4',
+    tabUrl: 'https://site/page',
+  }).map((o) => o.kind);
+  assert.deepEqual(kinds, ['file', 'stream', 'page']);
+  assert.deepEqual(qualityRows([
+    { preset: '1080p', label: '1080p60', size: 267_900_000 },
+    { preset: 'audio', label: 'Yalnız ses', size: null },
+  ]), [
+    { preset: '1080p', label: '1080p60', detail: '~267.9 MB' },
+    { preset: 'audio', label: 'Yalnız ses (m4a)', detail: '' },
+  ]);
+});
+
 test('YouTube gibi blob oynatıcıda tek seçenek: sayfa', async () => {
   const { buildCandidates } = await import('../detect.js');
   const options = buildCandidates({ srcUrl: 'blob:https://www.youtube.com/x', frameUrl: 'https://www.youtube.com/watch?v=1', tabUrl: 'https://www.youtube.com/watch?v=1' });

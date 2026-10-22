@@ -95,6 +95,19 @@ public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, Fetchabl
         return min(1, Double(bytesDone) / Double(total))
     }
 
+    /// Bu durum değişikliği bildirilmeli mi? (başlık, gövde) Yalnız bitiş ve kalıcı hata; playlist çocukları
+    /// tek tek değil grup bitince; `previous` nil ise (servis yeni açıldı) bildirilmez.
+    public func notification(previous: ItemState?) -> (title: String, body: String)? {
+        guard let previous, previous != state, parentId == nil else { return nil }
+        let name = title ?? url
+        switch state {
+        case .done where kind == .group: return ("Kervan: liste bitti", "\(name) · \(message ?? "")")
+        case .done: return ("Kervan: indirme bitti", name)
+        case .failed: return ("Kervan: indirme başarısız", "\(name) — \(lastError ?? "")")
+        default: return nil
+        }
+    }
+
     /// "www." öneki atılmış host; site başına eşzamanlılık bununla sayılır.
     public static func host(of url: URL) -> String {
         let host = url.host()?.lowercased() ?? ""

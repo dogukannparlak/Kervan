@@ -35,6 +35,9 @@ do {
     server.start()
     log("kervand \(kervanVersion) hazır: \(paths.socket.path)")
 
+    let notifier = Notifier()
+    await notifier.start(engine: engine)
+
     // SIGTERM (launchd durdurma) / SIGINT (Ctrl-C): çalışan indirmeleri kuyruğa geri koy, temiz çık.
     var sources: [DispatchSourceSignal] = []
     for signalNumber in [SIGTERM, SIGINT] {

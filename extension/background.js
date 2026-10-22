@@ -1,5 +1,6 @@
 import {
-  addMedia, buildCandidates, classifyResponse, downloadableUrl, emptyTab, hideVariants, parseMasterPlaylist, visibleMedia,
+  addMedia, buildCandidates, classifyResponse, downloadableUrl, emptyTab, hideVariants, parseMasterPlaylist, qualityRows,
+  visibleMedia,
 } from './detect.js';
 
 const HOST = 'com.dogukan.kervan';
@@ -93,14 +94,25 @@ async function send(message) {
   }
 }
 
-async function addToKervan({ url, pageUrl, title, items }) {
-  const { preset } = await preferences();
+function referer(url, pageUrl) {
+  return pageUrl && pageUrl !== url ? pageUrl : undefined;
+}
+
+/** `request.preset` (kalite menüsünden) yoksa popup'taki varsayılan kalite. */
+async function addToKervan({ url, pageUrl, title, items, preset: chosen }) {
+  const preset = chosen || (await preferences()).preset;
   return send({
     cmd: 'add', url, preset, items, cookies: 'auto',
-    referer: pageUrl && pageUrl !== url ? pageUrl : undefined,
+    referer: referer(url, pageUrl),
     userAgent: navigator.userAgent,
     title: title || undefined,
   });
+}
+
+async function qualitiesFor({ url, pageUrl }) {
+  const response = await send({ cmd: 'formats', url, cookies: 'auto', referer: referer(url, pageUrl), userAgent: navigator.userAgent });
+  if (!response?.ok) return { ok: false, error: response?.error };
+  return { ok: true, title: response.qualities?.title, rows: qualityRows(response.qualities?.options) };
 }
 
 // --- Sağ tık menüsü ---
@@ -169,6 +181,8 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
           tabUrl: sender.tab.url, tabTitle: sender.tab.title,
         }),
       });
+    } else if (message.type === 'qualities') {
+      reply(await qualitiesFor(message.request));
     } else if (message.type === 'control' && CONTROL_COMMANDS.includes(message.cmd)) {
       reply(await send({ cmd: message.cmd, ids: message.ids }));
     } else if (message.type === 'state') {

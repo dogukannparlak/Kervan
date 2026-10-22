@@ -6,7 +6,7 @@ import KervanIPC
 // İstekler kervand soketine iletilir. Köprüyü yalnız manifest'teki eklenti kimliği çağırabilir
 // (`allowed_origins`); akış isteyen `subscribe` dışındaki komutlar açıktır.
 
-let allowed: Set<Request.Command> = [.ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal]
+let allowed: Set<Request.Command> = [.ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal, .formats]
 let input = FileHandle.standardInput
 let output = FileHandle.standardOutput
 

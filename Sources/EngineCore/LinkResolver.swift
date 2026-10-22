@@ -36,11 +36,16 @@ public struct ResolvedLink: Sendable, Equatable {
 
 public protocol LinkResolving: Sendable {
     func resolve(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> ResolvedLink
+    func qualities(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList
 }
 
 extension LinkResolving {
     public func resolve(_ url: URL, cookies: CookiePolicy) async throws -> ResolvedLink {
         try await resolve(url, cookies: cookies, context: RequestContext())
+    }
+
+    public func qualities(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList {
+        QualityList(title: nil, options: [])
     }
 }
 
@@ -48,14 +53,28 @@ extension LinkResolving {
 public struct LinkResolver: LinkResolving {
     let head: any HeadFetching
     let probe: @Sendable (URL, String?, RequestContext) async throws -> ProbeResult
+    let formats: (@Sendable (URL, String?, RequestContext) async throws -> QualityList)?
 
     public init(ytDlp: YtDlpAdapter, head: any HeadFetching = URLSessionHeadFetcher()) {
-        self.init(head: head, probe: { try await ytDlp.probe($0, cookiesFromBrowser: $1, context: $2) })
+        self.init(head: head, probe: { try await ytDlp.probe($0, cookiesFromBrowser: $1, context: $2) },
+                  formats: { try await ytDlp.qualities($0, cookiesFromBrowser: $1, context: $2) })
     }
 
-    init(head: any HeadFetching, probe: @escaping @Sendable (URL, String?, RequestContext) async throws -> ProbeResult) {
+    init(head: any HeadFetching, probe: @escaping @Sendable (URL, String?, RequestContext) async throws -> ProbeResult,
+         formats: (@Sendable (URL, String?, RequestContext) async throws -> QualityList)? = nil) {
         self.head = head
         self.probe = probe
+        self.formats = formats
+    }
+
+    /// Kalite listesi; site giriş isterse `resolve` gibi yedek tarayıcının çereziyle bir kez daha dener.
+    public func qualities(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList {
+        guard let formats else { return QualityList(title: nil, options: []) }
+        do {
+            return try await formats(url, cookies.explicit, context)
+        } catch let error where cookies.explicit == nil && cookies.fallback != nil && YtDlpAdapter.isLoginError(error) {
+            return try await formats(url, cookies.fallback, context)
+        }
     }
 
     public func resolve(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> ResolvedLink {

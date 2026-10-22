@@ -13,6 +13,70 @@ struct Service: ParsableCommand {
             abstract: "kervand'ı Application Support/Kervan/bin'e kopyalar ve oturum açılışında başlatır."
         )
 
+        /// Servisi kimlikli, Dock'ta görünmeyen bir uygulama paketine koyar (Etkinlik Monitörü'nde "Kervan" görünür,
+        /// M4 uygulamasının temeli):
+        /// Kervan Agent.app/Contents/{MacOS/kervand, Resources/*.bundle, Resources/AppIcon.icns, Info.plist}.
+        static func buildAgentApp(from here: URL, paths: KervanPaths) throws -> URL {
+            let fileManager = FileManager.default
+            let app = paths.home.appending(path: "Kervan Agent.app")
+            let contents = app.appending(path: "Contents")
+            try? fileManager.removeItem(at: app)
+            for dir in ["MacOS", "Resources"] {
+                try fileManager.createDirectory(at: contents.appending(path: dir), withIntermediateDirectories: true)
+            }
+            try fileManager.copyItem(at: here.appending(path: "kervand"), to: contents.appending(path: "MacOS/kervand"))
+            for name in ["Kervan_EngineCore.bundle", "GRDB_GRDB.bundle"] where fileManager.fileExists(atPath: here.appending(path: name).path) {
+                try fileManager.copyItem(at: here.appending(path: name), to: contents.appending(path: "Resources/\(name)"))
+            }
+            if let icon = Self.repoFile("resources/AppIcon.icns", near: here) {
+                try fileManager.copyItem(at: icon, to: contents.appending(path: "Resources/AppIcon.icns"))
+            }
+            let info: [String: Any] = [
+                "CFBundleIdentifier": "com.dogukan.kervan.agent",
+                "CFBundleName": "Kervan",
+                "CFBundleDisplayName": "Kervan",
+                "CFBundleExecutable": "kervand",
+                "CFBundlePackageType": "APPL",
+                "CFBundleIconFile": "AppIcon",
+                "CFBundleShortVersionString": kervanVersion,
+                "CFBundleVersion": kervanVersion,
+                "LSUIElement": true,
+                "LSMinimumSystemVersion": "15.0",
+            ]
+            try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+                .write(to: contents.appending(path: "Info.plist"))
+            // Ad-hoc imza: paket bütünlüğü.
+            let sign = Process()
+            sign.executableURL = URL(filePath: "/usr/bin/codesign")
+            sign.arguments = ["--force", "--deep", "--sign", "-", app.path]
+            sign.standardError = FileHandle.nullDevice
+            try sign.run()
+            sign.waitUntilExit()
+            guard sign.terminationStatus == 0 else { throw CLIError("codesign başarısız: \(app.path)") }
+            // Köprü kuruluysa onu da güncelle: eski köprü yeni komutları "Geçersiz istek" diye reddeder.
+            let host = paths.bin.appending(path: "kervan-native-host")
+            if fileManager.fileExists(atPath: host.path), fileManager.fileExists(atPath: here.appending(path: "kervan-native-host").path) {
+                try? fileManager.removeItem(at: host)
+                try fileManager.copyItem(at: here.appending(path: "kervan-native-host"), to: host)
+            }
+            // Eski yerleşimden (bin/kervand) kalanlar.
+            for name in ["kervand", "Kervan_EngineCore.bundle", "GRDB_GRDB.bundle"] {
+                try? fileManager.removeItem(at: paths.bin.appending(path: name))
+            }
+            return app
+        }
+
+        /// .build/<yapı>/kervan → repo/<yol>
+        static func repoFile(_ relative: String, near binary: URL) -> URL? {
+            var dir = binary
+            for _ in 0..<4 {
+                dir = dir.deletingLastPathComponent()
+                let candidate = dir.appending(path: relative)
+                if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+            }
+            return nil
+        }
+
         func run() throws {
             let paths = KervanPaths()
             let fileManager = FileManager.default
@@ -24,19 +88,12 @@ struct Service: ParsableCommand {
                 throw CLIError("\(source.path) yok. Önce derle: swift build -c release")
             }
 
-            try fileManager.createDirectory(at: paths.bin, withIntermediateDirectories: true)
-            // Preset'ler kervand'ın yanındaki kaynak paketinden okunur.
-            for name in ["kervand", "Kervan_EngineCore.bundle", "GRDB_GRDB.bundle"] {
-                let from = here.appending(path: name), to = paths.bin.appending(path: name)
-                guard fileManager.fileExists(atPath: from.path) else { continue }
-                try? fileManager.removeItem(at: to)
-                try fileManager.copyItem(at: from, to: to)
-            }
+            let agent = try Self.buildAgentApp(from: here, paths: paths)
 
             try fileManager.createDirectory(at: paths.launchAgentPlist.deletingLastPathComponent(), withIntermediateDirectories: true)
             let plist: [String: Any] = [
                 "Label": KervanPaths.launchAgentLabel,
-                "ProgramArguments": [paths.bin.appending(path: "kervand").path],
+                "ProgramArguments": [agent.appending(path: "Contents/MacOS/kervand").path],
                 "RunAtLoad": true,
                 "KeepAlive": true,
                 "StandardOutPath": paths.home.appending(path: "kervand.log").path,

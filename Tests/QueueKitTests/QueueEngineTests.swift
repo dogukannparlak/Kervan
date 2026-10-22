@@ -105,6 +105,24 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
     }
 }
 
+@Suite struct NotificationTextTests {
+    @Test func onlyFinishAndFailureAreNotified() {
+        var item = DownloadItem(url: "https://a.com/v", kind: .video, host: "a.com", presetId: "1080p", destination: "/tmp", title: "Video")
+        item.state = .done
+        #expect(item.notification(previous: .downloading)! == ("Kervan: indirme bitti", "Video"))
+        #expect(item.notification(previous: nil) == nil)            // servis yeni açıldı
+        #expect(item.notification(previous: .done) == nil)          // değişiklik yok
+        item.state = .failed
+        item.lastError = "ERROR: 503"
+        #expect(item.notification(previous: .downloading)?.body == "Video — ERROR: 503")
+        item.state = .paused
+        #expect(item.notification(previous: .downloading) == nil)
+        item.state = .done
+        item.parentId = 1                                           // playlist çocuğu: grup bildirir
+        #expect(item.notification(previous: .downloading) == nil)
+    }
+}
+
 @Suite struct QueueEngineTests {
     @Test func storeRoundTrip() throws {
         let store = try ItemStore(path: nil)

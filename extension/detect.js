@@ -131,6 +131,15 @@ export function formatBytes(bytes) {
   return unit === 0 ? `${bytes} B` : `${size.toFixed(1)} ${units[unit]}`;
 }
 
+/** Servisin kalite listesini menü satırlarına çevirir: "1080p60" · "~267.9 MB". */
+export function qualityRows(options = []) {
+  return options.map((option) => ({
+    preset: option.preset,
+    label: option.preset === 'audio' ? 'Yalnız ses (m4a)' : option.label,
+    detail: option.size ? `~${formatBytes(option.size)}` : '',
+  }));
+}
+
 /** Sağ tık menüsünden gelen adres: blob:/data: indirilemez, sayfaya düşülür. */
 export function downloadableUrl(candidate, pageUrl) {
   if (candidate && /^https?:/i.test(candidate)) return candidate;
@@ -157,16 +166,22 @@ export function buildCandidates({ media = [], srcUrl, frameUrl, tabUrl, tabTitle
   const base = { pageUrl: tabUrl, title: tabTitle };
   const options = [];
   if (isHttp(srcUrl)) {
-    options.push({ label: 'Bu video dosyası', detail: shortUrl(srcUrl), request: { ...base, url: srcUrl } });
+    options.push({ kind: 'file', label: 'Bu video dosyası', detail: shortUrl(srcUrl), request: { ...base, url: srcUrl } });
   }
   for (const item of media.slice().reverse()) {
     if (item.url === srcUrl) continue;
     const size = item.size ? ` · ${formatBytes(item.size)}` : '';
-    options.push({ label: `${mediaLabel(item)}${size}`, detail: shortUrl(item.url), request: { ...base, url: item.url } });
+    options.push({
+      kind: item.kind === 'file' ? 'file' : 'stream',
+      label: `${mediaLabel(item)}${size}`,
+      detail: shortUrl(item.url),
+      request: { ...base, url: item.url },
+    });
   }
   const page = isHttp(frameUrl) ? frameUrl : tabUrl;
   if (isHttp(page)) {
     options.push({
+      kind: 'page',
       label: 'Sayfadan indir (site tanınırsa en iyi kalite)',
       detail: new URL(page).hostname,
       request: { ...base, url: page },

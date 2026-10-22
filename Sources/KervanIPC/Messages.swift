@@ -42,6 +42,8 @@ public struct Request: Codable, Sendable {
         case pause, resume, cancel, retry, remove
         /// Bitmiş dosyayı Finder'da gösterir (yol istekten değil kuyruktan alınır).
         case reveal
+        /// Linkin kalite seçenekleri (yt-dlp formatları).
+        case formats
     }
 
     public var cmd: Command
@@ -88,10 +90,11 @@ public struct Response: Codable, Sendable {
     public var entries: [ProbeResult.Entry]?
     public var notes: [String]?
     public var log: [String]?
+    public var qualities: QualityList?
 
     public init(ok: Bool, error: String? = nil, event: Bool? = nil, version: String? = nil, items: [DownloadItem]? = nil,
                 removed: [Int64]? = nil, title: String? = nil, entries: [ProbeResult.Entry]? = nil,
-                notes: [String]? = nil, log: [String]? = nil) {
+                notes: [String]? = nil, log: [String]? = nil, qualities: QualityList? = nil) {
         self.ok = ok
         self.error = error
         self.event = event
@@ -102,6 +105,7 @@ public struct Response: Codable, Sendable {
         self.entries = entries
         self.notes = notes
         self.log = log
+        self.qualities = qualities
     }
 
     public static func failure(_ message: String) -> Response { Response(ok: false, error: message) }

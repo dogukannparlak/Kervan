@@ -212,6 +212,11 @@ public actor QueueEngine {
         return candidate
     }
 
+    /// Bir linkin kalite seçenekleri (kuyruğa bir şey eklemez).
+    public nonisolated func qualities(url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList {
+        try await resolver.qualities(url, cookies: cookies, context: context)
+    }
+
     // MARK: - Kullanıcı eylemleri
 
     /// Grup kimliği verilirse eylem çocuklarına uygulanır (uygun olmayanlar atlanır).

@@ -99,6 +99,14 @@ Durdur → paused, Devam → downloading, İptal → canceled, Sil → kuyruktan
 **Denenmedi:** gerçek sitelerde (Twitter, Instagram vb. kendi oynatıcılarıyla) düğmenin konumu;
 tam ekran; `reveal` canlı (Finder açacağı için).
 
+### M3.6 — Kalite seçimi, bildirim, HLS yüzdesi ✅ (2026-10-23)
+İstek (Doğukan): "1-2-3 yap".
+**Sonuç:** video üstü menüde HLS → kalite listesi (1080p60 ~614 MB … 270p) → 720p seçildi → 254,3 MB
+(tahminle aynı), ffprobe 720p; ilerlemede yüzde + kalan süre göründü. `kervan formats` YouTube'da
+2160p60…144p + ses. Swift 52 + eklenti 10 test.
+**Değişen karar:** UserNotifications macOS 27'de pakete izin vermedi (bkz. ARCHITECTURE 4c) →
+`osascript` bildirimi; tıklayınca dosya açma yok. Bildirimin ekranda göründüğü Doğukan'dan teyit bekliyor.
+
 ## M4 — SwiftUI app MVP
 - `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır
 - ekranlar: Ekle (URL + preset + klasör), Kuyruk listesi (başlık, çubuk, hız, ETA, düğmeler),

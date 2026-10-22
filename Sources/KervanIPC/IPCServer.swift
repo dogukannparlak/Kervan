@@ -105,6 +105,13 @@ public final class IPCServer: Sendable {
                 process.arguments = ["-R", path]
                 try process.run()
                 return Response(ok: true, items: [item])
+            case .formats:
+                guard let text = request.url, let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+                    throw QueueError.invalidURL(request.url ?? "")
+                }
+                let context = RequestContext(referer: request.referer, userAgent: request.userAgent)
+                let list = try await engine.qualities(url: url, cookies: CookiePolicy(request.cookies ?? "auto"), context: context)
+                return Response(ok: true, qualities: list)
             case .subscribe:
                 return .failure("subscribe burada işlenmez.")
             }
