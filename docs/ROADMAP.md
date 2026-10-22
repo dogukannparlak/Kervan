@@ -33,17 +33,28 @@ açık hatayla bitti. `swift test` 26/26.
 **Denenmedi:** gerçek bir Instagram/X/Reddit/TikTok gönderisi (Doğukan'dan link bekleniyor),
 m3u8 akışının indirilmesi (yalnız probe denendi).
 
-## M2 — `kervand` + kalıcı kuyruk
+## M2 — `kervand` + kalıcı kuyruk ✅ (2026-10-23)
 - QueueKit: GRDB/SQLite, state machine, retry/backoff, çökme kurtarma
 - `kervand` LaunchAgent + Unix socket protokolü; `kervan service install|uninstall|status`
 - CLI istemci: `add`, `list`, `pause`, `resume`, `cancel`, `retry`, `watch`, `log <id>`
 - eşzamanlılık: global 3 + site başına 2; playlist girişleri çocuk öğe
-- öğe başına çerez tarayıcısı ve referer/başlıklar saklanır (M3'ün ihtiyacı)
+- öğe başına çerez tarayıcısı saklanır (referer/başlıklar M3'te)
+- yetim süreç temizliği: servis SIGKILL ile ölürse yt-dlp çocukları kalır; yeniden açılışta
+  `ChildRegistry` (pid + başlama zamanı) onları durdurur
 
 **Bitti kriteri:** 5 öğelik kuyruk sürerken `kervand` öldürülür; launchd yeniden
 başlatınca 3. öğe `.part`'tan devam eder; bozuk bir URL 3 denemeden sonra `failed`
 olur ve `kervan retry` ile yeniden kuyruğa girer.
 **Süre:** ~2–3 saat model işi.
+
+**Sonuç:** LaunchAgent kuruldu; 5 öğelik kuyrukta Big Buck Bunny %51'deyken `kill -9 kervand` →
+launchd 1 sn'de yeniden başlattı, 2 yetim yt-dlp süreci durduruldu, indirme %52'den sürdü ve
+dosya sağlam çıktı (ffprobe: 1080p h264 + aac, 10:34). HLS öğesi pause → süreç durdu, `.part`
+180 MB kaldı → resume ile devam etti. w3schools mp4'ü Referer'sız 403 verdi, 3 denemeden sonra
+`failed` oldu (Referer M3'te). `swift test` 42/42.
+**Değişen karar:** link sınıflandırması (probe) `add` anında yapılır; bozuk link kuyruğa hiç girmez
+(`probing` durumu kalktı). aria2 öğe başına ayrı süreç olarak kaldı (tek kalıcı süreç gerekmedi).
+**Bilinen eksik:** HLS akışlarında toplam boyut bilinmediği için yüzde gösterilmiyor.
 
 ## M3 — Brave eklentisi: video yakalama (IDM'in asıl gücü)
 Amaç: yt-dlp'nin tanımadığı sitelerde bile, sayfada oynayan videoyu yakalamak.

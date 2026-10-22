@@ -1,11 +1,17 @@
 import Foundation
 
 /// `yt-dlp -J --flat-playlist` çıktısının ihtiyacımız olan kısmı.
-public struct ProbeResult: Decodable, Sendable, Equatable {
-    public struct Entry: Decodable, Sendable, Equatable {
+public struct ProbeResult: Codable, Sendable, Equatable {
+    public struct Entry: Codable, Sendable, Equatable {
         public let id: String?
         public let title: String?
         public let url: String?
+
+        public init(id: String?, title: String?, url: String?) {
+            self.id = id
+            self.title = title
+            self.url = url
+        }
     }
 
     public let id: String?

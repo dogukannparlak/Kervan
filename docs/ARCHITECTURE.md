@@ -67,28 +67,28 @@ politikası ve çıktı ayrıştırma tek yerde denetlenir.
 ### State machine
 
 ```
-queued ──→ probing ──→ downloading ──→ postprocessing ──→ done
-  ↑           │             │                │
-  │           └──────┬──────┴────────┬───────┘
-  │                  ↓               ↓
-  │               paused          failed ──(retry < max, backoff)──┐
-  │                  │               │                             │
-  └──── resume ──────┘               └──(elle yeniden dene)────────┤
-  └────────────────────────────────────────────────────────────────┘
-
-canceled: queued / probing / downloading / paused / failed durumlarından; terminal.
+add: link sınıflandırılır (HEAD + yt-dlp probe, çerez yedeği) → bozuksa kuyruğa girmez
+          ↓
+queued ──→ downloading ⇄ postprocessing ──→ done
+  ↑            │                │
+  │            ├──→ paused ─────┘ (pause; resume → queued)
+  │            ├──→ failed ── retry (elle) ──→ queued
+  │            └──→ queued  (hata + deneme kaldı: backoff; ya da kapanış/çökme kurtarma)
+canceled: queued / downloading / postprocessing / paused / failed durumlarından; retry ile queued.
 ```
 
 Kurallar:
-- Durum geçişleri yalnız `QueueKit` actor'ünde, izinli geçiş tablosuyla yapılır;
-  izinsiz geçiş hata fırlatır (testlenir).
-- State ve son ilerleme **SQLite'a yazılır** (GRDB, WAL modu). İlerleme yazımı
-  en fazla saniyede 1 kez (disk yükü).
-- Servis açılışında `probing/downloading/postprocessing` kalan öğeler
-  `queued`'a döner (çökme sonrası kurtarma); `.part` dosyası devamı sağlar.
-- Eşzamanlılık: global `maxParallel` (3) + site başına `maxPerHost` (2) +
-  aynı siteye başlatmalar arası gecikme.
-- Her öğe: `attempt`, `maxAttempts` (3), `nextAttemptAt` (backoff: 10 sn · 2^n, üst 10 dk).
+- Geçişler yalnız `QueueEngine` actor'ünde, `ItemState.canTransition` tablosuyla (testli).
+- Bellekte anlık; SQLite'a (GRDB, WAL) en fazla saniyede 1, abonelere en fazla 4/sn yazılır.
+- Servis açılışında `downloading/postprocessing` kalanlar `queued`'a döner; `.part` devamı sağlar.
+- Eşzamanlılık: global `maxParallel` (3) + site başına `maxPerHost` (2) + aynı siteye başlatmalar
+  arası 2 sn.
+- Retry: öğe başına 3 deneme, backoff 10 sn · 2^(n-1), üst 10 dk. Kalıcı hatalar (giriş, eksik
+  araç, "Video unavailable", 404/410, desteklenmeyen URL) yeniden denenmez.
+- Playlist / çok videolu sayfa: `group` satırı + seçilen her giriş için çocuk öğe; grubun durumu
+  ve baytları çocuklardan hesaplanır; grup üzerindeki eylem çocuklara uygulanır.
+- Yetim süreçler: `ChildRegistry` her child'ın pid + başlama zamanını `children.txt`'e yazar;
+  servis açılışında ebeveyni launchd olan ve başlama zamanı tutan süreçler SIGTERM → SIGKILL.
 
 ### ProgressEvent (ortak dil)
 
@@ -122,13 +122,17 @@ CLI, app, bildirim ve dock aynı akıştan beslenir.
 ## 4. Servis ve istemciler
 
 - `kervand` bir **LaunchAgent**'tır (`~/Library/LaunchAgents/com.dogukan.kervand.plist`,
-  `RunAtLoad`, `KeepAlive`). Kuyruğu ve aria2 RPC sürecini yalnız o yönetir.
-- İstemci arayüzü: Unix domain socket (`~/Library/Application Support/Kervan/kervand.sock`)
-  üzerinde satır başına bir JSON mesaj. Komutlar: `add`, `list`, `pause`, `resume`,
-  `cancel`, `retry`, `remove`, `subscribe` (olay akışı). App M3'te aynı protokolü kullanır;
-  gerekirse sonra XPC'ye geçilir.
-- CLI, servis çalışmıyorsa açık hata verir ve `kervan service install` önerir.
-- M1'de servis yok: `kervan get <url>` tek indirmeyi doğrudan, ön planda çalıştırır.
+  `RunAtLoad`, `KeepAlive`); `kervan service install` ikiliyi ve kaynak paketlerini
+  `~/Library/Application Support/Kervan/bin`'e kopyalar. Log: `…/Kervan/kervand.log`.
+- Dosyalar (`KervanPaths`, `KERVAN_HOME` ile değişir): `kervan.sqlite`, `kervand.sock`,
+  `logs/<id>.log` (araç çıktısı, ilerleme satırları hariç), `children.txt`.
+- Protokol: Unix domain socket (0600), satır başına bir JSON. `Request{cmd, url, preset, dir,
+  cookies, items, ids, lines}` → `Response{ok, error, items, entries, notes, log, version}`.
+  Komutlar: `ping`, `add`, `list`, `log`, `pause`, `resume`, `cancel`, `retry`, `remove`,
+  `subscribe` (ardından her değişiklik `event: true` ile gelir; silinenler `removed`).
+- Çok videolu sayfa `add`'de seçim yoksa yanıt `entries` döner, kuyruğa bir şey eklenmez.
+- Sunucu bağlantı başına bir iş parçacığı kullanır, istekleri actor'e köprüler.
+- `kervan get` servissiz, ön planda tek indirme olarak kalır.
 
 ## 5. Eşzamanlılık modeli
 

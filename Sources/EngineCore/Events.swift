@@ -45,6 +45,7 @@ public enum EngineError: Error, Equatable, CustomStringConvertible {
     case noOutputFile
     case invalidProbeOutput(String)
     case aria2NotReady
+    case loginRequired(browser: String, detail: String)
 
     public var description: String {
         switch self {
@@ -54,6 +55,9 @@ public enum EngineError: Error, Equatable, CustomStringConvertible {
         case .noOutputFile: "İndirme bitti ama çıktı dosyası bildirilmedi."
         case .invalidProbeOutput(let detail): "yt-dlp metadata çıktısı okunamadı: \(detail)"
         case .aria2NotReady: "aria2 RPC sunucusu başlamadı."
+        case .loginRequired(let browser, let detail):
+            "\(browser) çerezleri yetmedi: \(browser)'da bu siteye giriş yapıp tekrar dene "
+                + "(başka tarayıcı: --cookies firefox).\n\(detail)"
         }
     }
 }

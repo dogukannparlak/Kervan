@@ -1,0 +1,94 @@
+import Foundation
+import GRDB
+
+public enum ItemKind: String, Codable, Sendable, DatabaseValueConvertible {
+    case video
+    case http
+    /// Playlist / çok videolu sayfa başlığı; kendisi inmez, çocukları iner.
+    case group
+}
+
+public enum ItemState: String, Codable, Sendable, CaseIterable, DatabaseValueConvertible {
+    case queued, downloading, postprocessing, paused, failed, canceled, done
+
+    /// İzinli geçişler. `done` terminaldir; `canceled` yalnız elle yeniden denemeyle döner.
+    public func canTransition(to next: ItemState) -> Bool {
+        switch (self, next) {
+        case (.queued, .downloading), (.queued, .paused), (.queued, .canceled): true
+        case (.downloading, .postprocessing), (.downloading, .done), (.downloading, .failed),
+             (.downloading, .queued), (.downloading, .paused), (.downloading, .canceled): true
+        case (.postprocessing, .downloading), (.postprocessing, .done), (.postprocessing, .failed),
+             (.postprocessing, .queued), (.postprocessing, .paused), (.postprocessing, .canceled): true
+        case (.paused, .queued), (.paused, .canceled): true
+        case (.failed, .queued), (.failed, .canceled): true
+        case (.canceled, .queued): true
+        default: false
+        }
+    }
+
+    public var isActive: Bool { self == .downloading || self == .postprocessing }
+    public var isFinished: Bool { self == .done || self == .canceled || self == .failed }
+}
+
+public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
+    public static let databaseTableName = "item"
+
+    public var id: Int64?
+    public var url: String
+    public var kind: ItemKind
+    public var parentId: Int64?
+    /// URL'si olmayan playlist girişleri için yt-dlp `--playlist-items` sırası.
+    public var playlistIndex: Int?
+    public var title: String?
+    public var host: String
+    public var presetId: String
+    public var cookiesBrowser: String?
+    public var destination: String
+    public var state: ItemState
+    public var attempt: Int
+    public var maxAttempts: Int
+    public var nextAttemptAt: Date?
+    public var lastError: String?
+    public var bytesDone: Int64
+    public var bytesTotal: Int64?
+    public var bytesTotalEstimate: Int64?
+    public var speed: Double?
+    public var eta: Int?
+    public var message: String?
+    public var outputPath: String?
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var finishedAt: Date?
+
+    public init(url: String, kind: ItemKind, host: String, presetId: String, destination: String,
+                cookiesBrowser: String? = nil, title: String? = nil, maxAttempts: Int = 3, now: Date = Date()) {
+        self.url = url
+        self.kind = kind
+        self.host = host
+        self.presetId = presetId
+        self.destination = destination
+        self.cookiesBrowser = cookiesBrowser
+        self.title = title
+        self.maxAttempts = maxAttempts
+        state = .queued
+        attempt = 0
+        bytesDone = 0
+        createdAt = now
+        updatedAt = now
+    }
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+
+    public var fraction: Double? {
+        guard let total = bytesTotal ?? bytesTotalEstimate, total > 0 else { return state == .done ? 1 : nil }
+        return min(1, Double(bytesDone) / Double(total))
+    }
+
+    /// "www." öneki atılmış host; site başına eşzamanlılık bununla sayılır.
+    public static func host(of url: URL) -> String {
+        let host = url.host()?.lowercased() ?? ""
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+}

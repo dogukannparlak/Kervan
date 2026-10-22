@@ -77,8 +77,12 @@ final class SystemProcess: RunningProcess, @unchecked Sendable {
             }
         }
 
-        process.terminationHandler = { [exit] process in exit.signal(process.terminationStatus) }
+        process.terminationHandler = { [exit] process in
+            ChildRegistry.unregister(pid: process.processIdentifier)
+            exit.signal(process.terminationStatus)
+        }
         try process.run()
+        ChildRegistry.register(pid: process.processIdentifier)
     }
 
     func waitUntilExit() async -> Int32 { await exit.wait() }

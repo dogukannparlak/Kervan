@@ -1,23 +1,24 @@
 import ArgumentParser
 import EngineCore
 import Foundation
+import KervanIPC
 
 @main
 struct KervanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "kervan",
         abstract: "yt-dlp + aria2 tabanlı indirme yöneticisi.",
-        version: "0.1.0",
-        subcommands: [Get.self, Probe.self, Doctor.self, Presets.self]
+        discussion: "Kuyruk komutları (add, list, watch…) arka plandaki kervand servisine bağlanır: kervan service install.",
+        version: kervanVersion,
+        subcommands: [
+            Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Log.self,
+            Get.self, Probe.self, Service.self, Doctor.self, Presets.self,
+        ]
     )
 }
 
-struct Get: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Tek bir linki ön planda indirir.")
-
-    @Argument(help: "Video sayfası ya da doğrudan dosya linki.")
-    var url: String
-
+/// `add` ve `get`'in ortak seçenekleri.
+struct DownloadOptions: ParsableArguments {
     @Option(name: .shortAndLong, help: "Kalite ön ayarı (`kervan presets`).")
     var preset = "1080p"
 
@@ -27,44 +28,61 @@ struct Get: AsyncParsableCommand {
     @Option(help: "Tarayıcı çerezleri: auto (giriş isterse Brave), none ya da brave/chrome/firefox/safari/edge.")
     var cookies = "auto"
 
-    @Flag(help: "Sayfadaki/playlist'teki bütün videoları indir.")
+    @Flag(help: "Sayfadaki/playlist'teki bütün videolar.")
     var all = false
 
     @Option(help: "Yalnız seçilen videolar, ör. 1,3 ya da 2-5.")
     var items: String?
+
+    var directory: URL { URL(filePath: NSString(string: dir).expandingTildeInPath) }
+    var selection: String? { items ?? (all ? "all" : nil) }
+
+    func validatedPreset() throws -> Preset {
+        guard let found = try PresetStore.named(preset) else {
+            throw ValidationError("Bilinmeyen preset: \(preset). Liste: kervan presets")
+        }
+        return found
+    }
+}
+
+struct Get: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Bir linki servis olmadan, ön planda indirir.")
+
+    @Argument(help: "Video sayfası ya da doğrudan dosya linki.")
+    var url: String
+
+    @OptionGroup var options: DownloadOptions
 
     @Flag(name: .shortAndLong, help: "Araç çıktısını da göster.")
     var verbose = false
 
     func run() async throws {
         let url = try parseURL(url)
-        guard let preset = try PresetStore.named(preset) else {
-            throw ValidationError("Bilinmeyen preset: \(self.preset). Liste: kervan presets")
-        }
-        let directory = URL(filePath: NSString(string: dir).expandingTildeInPath)
+        let preset = try options.validatedPreset()
+        let directory = options.directory
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let tools = try Toolbox()
-        let (kind, browser) = try await tools.classify(url, cookies: CookieOption(cookies))
+        let resolved = try await tools.resolver.resolve(url, cookies: CookiePolicy(options.cookies))
+        resolved.notes.forEach { print("→ \($0)") }
         let events: AsyncThrowingStream<DownloadEvent, Error>
-        switch kind {
+        switch resolved.kind {
         case .http:
             print("→ düz dosya (aria2)")
             events = try tools.aria2().download(url, to: directory)
         case .video(let info):
             print("→ \(info.title ?? url.absoluteString)  [\(info.extractor ?? "?") · \(preset.id)]")
-            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: browser)
+            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: resolved.cookiesBrowser)
         case .playlist(let info):
             let entries = info.entries ?? []
-            guard all || items != nil else {
-                print("Bu sayfada \(entries.count) video var:")
-                printEntries(entries)
-                print("İndirmek için: --all ya da --items 1,3")
+            guard let selection = options.selection else {
+                printSelectionHint(title: info.title, entries: entries)
                 return
             }
-            let selection = items ?? "1-\(entries.count)"
-            print("→ \(info.title ?? url.absoluteString)  [\(info.extractor ?? "?") · \(preset.id) · video \(selection)]")
-            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: browser, playlistItems: selection)
+            let items = selection == "all" ? "1-\(entries.count)" : selection
+            print("→ \(info.title ?? url.absoluteString)  [\(info.extractor ?? "?") · \(preset.id) · video \(items)]")
+            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: resolved.cookiesBrowser,
+                                          playlistItems: items)
         }
 
         let renderer = ProgressRenderer()
@@ -90,9 +108,9 @@ struct Probe: AsyncParsableCommand {
 
     func run() async throws {
         let url = try parseURL(url)
-        let tools = try Toolbox()
-        let (kind, browser) = try await tools.classify(url, cookies: CookieOption(cookies))
-        switch kind {
+        let resolved = try await Toolbox().resolver.resolve(url, cookies: CookiePolicy(cookies))
+        resolved.notes.forEach { print("→ \($0)") }
+        switch resolved.kind {
         case .http:
             print("tür: http (aria2)")
         case .video(let info):
@@ -102,52 +120,12 @@ struct Probe: AsyncParsableCommand {
             print("tür: çok videolu sayfa / playlist\nbaşlık: \(info.title ?? "-")\nsite: \(info.extractor ?? "-")")
             printEntries(info.entries ?? [])
         }
-        if let browser { print("çerez: \(browser)") }
-    }
-}
-
-func printEntries(_ entries: [ProbeResult.Entry], limit: Int = 50) {
-    for (index, entry) in entries.prefix(limit).enumerated() {
-        print("  \(index + 1). \(entry.title ?? entry.url ?? entry.id ?? "?")")
-    }
-    if entries.count > limit { print("  … +\(entries.count - limit)") }
-}
-
-/// `--cookies` değeri: auto → önce çerezsiz, giriş hatasında yedek tarayıcı.
-struct CookieOption {
-    let explicit: String?
-    let fallback: String?
-
-    init(_ value: String) {
-        switch value.lowercased() {
-        case "auto":
-            explicit = nil
-            fallback = ProcessInfo.processInfo.environment["KERVAN_COOKIES_BROWSER"] ?? "brave"
-        case "none":
-            explicit = nil
-            fallback = nil
-        default:
-            explicit = value.lowercased()
-            fallback = nil
-        }
-    }
-}
-
-/// Probe sırasında hangi tarayıcının çerezinin kullanıldığını indirmeye taşır.
-private final class CookieChoice: @unchecked Sendable {
-    private let lock = NSLock()
-    private var browser: String?
-
-    init(_ browser: String?) { self.browser = browser }
-
-    var value: String? {
-        get { lock.withLock { browser } }
-        set { lock.withLock { browser = newValue } }
+        if let browser = resolved.cookiesBrowser { print("çerez: \(browser)") }
     }
 }
 
 struct Doctor: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Dış araçları ve sürümlerini denetler.")
+    static let configuration = CommandConfiguration(abstract: "Dış araçları, sürümlerini ve servisi denetler.")
 
     func run() async throws {
         let locator = ToolLocator()
@@ -164,6 +142,11 @@ struct Doctor: AsyncParsableCommand {
             if tool == .ytDlp, let age = Self.ageInDays(ytDlpVersion: version), age > 60 {
                 print("  ! yt-dlp \(age) günlük; YouTube bozulabilir → brew upgrade yt-dlp")
             }
+        }
+        if let version = IPCClient.ping() {
+            print("✓ kervand: çalışıyor (\(version))")
+        } else {
+            print("· kervand: çalışmıyor (kuyruk komutları için: kervan service install)")
         }
         if missing { throw ExitCode.failure }
     }
@@ -201,7 +184,20 @@ func parseURL(_ text: String) throws -> URL {
     return url
 }
 
-/// Bulunan araçlardan adapter'ları kurar.
+func printEntries(_ entries: [ProbeResult.Entry], limit: Int = 50) {
+    for (index, entry) in entries.prefix(limit).enumerated() {
+        print("  \(index + 1). \(entry.title ?? entry.url ?? entry.id ?? "?")")
+    }
+    if entries.count > limit { print("  … +\(entries.count - limit)") }
+}
+
+func printSelectionHint(title: String?, entries: [ProbeResult.Entry]) {
+    print("\(title.map { "\"\($0)\": " } ?? "")bu sayfada \(entries.count) video var:")
+    printEntries(entries)
+    print("İndirmek için: --all ya da --items 1,3")
+}
+
+/// Bulunan araçlardan adapter'ları kurar (servissiz `get` / `probe` için).
 struct Toolbox {
     let locator = ToolLocator()
     let ytDlp: YtDlpAdapter
@@ -212,28 +208,7 @@ struct Toolbox {
         ytDlp = YtDlpAdapter(executable: ytDlpPath, ffmpeg: locator.locate(.ffmpeg), environment: locator.environment)
     }
 
-    /// Sınıflandırır; site giriş isterse yedek tarayıcının çereziyle bir kez daha dener.
-    /// Dönen tarayıcı adı indirmede de kullanılır.
-    func classify(_ url: URL, cookies: CookieOption) async throws -> (DownloadKind, String?) {
-        let choice = CookieChoice(cookies.explicit)
-        let ytDlp = ytDlp
-        let classifier = URLClassifier(probe: { url in
-            do {
-                return try await ytDlp.probe(url, cookiesFromBrowser: choice.value)
-            } catch let error where choice.value == nil && YtDlpAdapter.isLoginError(error) {
-                guard let fallback = cookies.fallback else { throw error }
-                print("→ site giriş istiyor; \(fallback) çerezleriyle yeniden deneniyor")
-                choice.value = fallback
-                do {
-                    return try await ytDlp.probe(url, cookiesFromBrowser: fallback)
-                } catch let error where YtDlpAdapter.isLoginError(error) {
-                    throw CLIError("\(fallback) çerezleri yetmedi: \(fallback)'da bu siteye giriş yapıp tekrar dene "
-                                   + "(başka tarayıcı için --cookies firefox).\n\(error)")
-                }
-            }
-        })
-        return (try await classifier.classify(url), choice.value)
-    }
+    var resolver: LinkResolver { LinkResolver(ytDlp: ytDlp) }
 
     func aria2() throws -> Aria2Adapter {
         guard let path = locator.locate(.aria2c) else { throw EngineError.toolMissing(.aria2c) }

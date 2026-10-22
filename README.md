@@ -1,27 +1,31 @@
 # Kervan
 
 > IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: M1.5 bitti (2026-10-23)** — `kervan get` CLI ile indirme çalışıyor: yt-dlp'nin desteklediği
-> siteler, giriş isteyen sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2).
-> Kuyruk/servis M2'de, sayfadaki videoyu yakalayan Brave eklentisi M3'te.
+> **Durum: M2 bitti (2026-10-23)** — arka plan servisi `kervand` + kalıcı kuyruk çalışıyor. Video siteleri
+> (yt-dlp), giriş isteyen sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2).
+> Sayfadaki videoyu yakalayan Brave eklentisi M3'te.
 
 ## Hızlı başlangıç
 
 ```bash
-scripts/install-deps.sh          # yt-dlp, ffmpeg, aria2, deno
-swift run kervan doctor          # araçlar ve sürümler
-swift run kervan get <url>       # varsayılan: 1080p mp4 → ~/Downloads/Kervan
-swift run kervan get <url> -p best -d ~/Desktop
-swift run kervan get <sayfa> --all     # sayfadaki bütün videolar (--items 1,3)
-swift run kervan get <url> --cookies firefox   # varsayılan auto: giriş isterse Brave
-swift run kervan probe <url>     # türü ve metadata'yı göster, indirme
-swift run kervan presets
-swift test
+scripts/install-deps.sh                # yt-dlp, ffmpeg, aria2, deno
+swift build -c release
+.build/release/kervan service install  # kervand'ı LaunchAgent olarak kurar ve başlatır
+alias kervan=$PWD/.build/release/kervan
+
+kervan add <url> [<url>…] -w           # kuyruğa ekle, -w: bitene kadar izle
+kervan add <sayfa> --all               # sayfadaki bütün videolar (--items 1,3)
+kervan list                            # ls; --all bitmişleri de gösterir
+kervan watch                           # canlı tablo
+kervan pause 3 · resume 3 · cancel 3 · retry 3 · rm 3
+kervan log 3 -n 50
+kervan get <url>                       # servissiz, ön planda tek indirme
+kervan doctor                          # araçlar + servis durumu
+kervan service status | uninstall
 ```
 
-Kervan, Internet Download Manager'ın macOS'ta yapmadığı şeyi yapar: video sitelerini
-(YouTube, Instagram, Twitter/X, VK, Reddit… yt-dlp'nin desteklediği her site)
-ve doğrudan HTTP linklerini tek bir kuyrukta, eşzamanlı ve devam edilebilir şekilde indirir.
+Seçenekler (`add`/`get`): `-p best|1080p|720p|audio`, `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
+`--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi).
 
 ---
 
@@ -164,6 +168,7 @@ Kervan/
 │   ├── EngineCore/              ← ProcessRunner, URLClassifier, adapter'lar
 │   │   └── Resources/presets/   ← preset JSON'ları (paket kaynağı)
 │   ├── QueueKit/                ← state machine, SQLite, eşzamanlılık
+│   ├── KervanIPC/               ← soket protokolü, sunucu/istemci, dosya yolları
 │   ├── kervand/                 ← servis (LaunchAgent)
 │   └── kervan/                  ← CLI
 ├── Tests/
@@ -172,8 +177,6 @@ Kervan/
 │   └── Integration/             ← gerçek indirme (ağ ister, ayrı çalıştırılır)
 ├── app/                         ← Kervan.app Xcode projesi (M3); kök paketi yerel bağımlılık olarak kullanır
 ├── extension/                   ← Brave/Chromium uzantısı (M7)
-├── resources/
-│   └── launchd/                 ← com.dogukan.kervand.plist
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   └── ROADMAP.md
@@ -191,7 +194,7 @@ Kervan/
 | **M0** ✅ | Plan + mimari | bu belge |
 | **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | 1080p YouTube tek mp4; HTTP zip aria2 ile |
 | **M1.5** ✅ | Brave çerezi + çok videolu sayfa | giriş isteyen sitede otomatik çerez; sayfadaki videolar `--all` ile |
-| **M2** | `kervand` + kalıcı kuyruk | servis öldürülüp açılınca kuyruk kaldığı yerden sürer |
+| **M2** ✅ | `kervand` + kalıcı kuyruk | servis öldürülüp açılınca kuyruk kaldığı yerden sürer |
 | **M3** | Brave eklentisi: ağdan video yakalama | yt-dlp'nin tanımadığı sayfadaki video tek tıkla iner |
 | **M4** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
 | **M5** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
