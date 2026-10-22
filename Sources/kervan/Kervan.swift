@@ -2,6 +2,7 @@ import ArgumentParser
 import EngineCore
 import Foundation
 import KervanIPC
+import QueueKit
 
 @main
 struct KervanCommand: AsyncParsableCommand {
@@ -12,7 +13,7 @@ struct KervanCommand: AsyncParsableCommand {
         version: kervanVersion,
         subcommands: [
             Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Reveal.self, Log.self,
-            Get.self, Probe.self, Formats.self, Update.self, Config.self, Service.self, Extension.self, Doctor.self, Presets.self,
+            Get.self, Probe.self, Formats.self, Update.self, Config.self, Service.self, AppCommand.self, Extension.self, Doctor.self, Presets.self,
         ]
     )
 }

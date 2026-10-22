@@ -10,6 +10,7 @@ let package = Package(
         .executable(name: "kervan", targets: ["kervan"]),
         .executable(name: "kervand", targets: ["kervand"]),
         .executable(name: "kervan-native-host", targets: ["kervan-native-host"]),
+        .executable(name: "KervanApp", targets: ["KervanApp"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
@@ -33,6 +34,10 @@ let package = Package(
             dependencies: ["EngineCore", "QueueKit", "KervanIPC"]
         ),
         .executableTarget(
+            name: "KervanApp",
+            dependencies: ["EngineCore", "QueueKit", "KervanIPC"]
+        ),
+        .executableTarget(
             name: "kervan-native-host",
             dependencies: ["KervanIPC"]
         ),
@@ -40,6 +45,7 @@ let package = Package(
             name: "kervan",
             dependencies: [
                 "EngineCore",
+                "QueueKit",
                 "KervanIPC",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]

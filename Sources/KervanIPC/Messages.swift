@@ -2,7 +2,7 @@ import EngineCore
 import Foundation
 import QueueKit
 
-public let kervanVersion = "0.4.0"
+public let kervanVersion = "0.5.0"
 
 /// Kervan'ın dosya yerleri. `KERVAN_HOME` ile değiştirilebilir (geliştirme/test).
 public struct KervanPaths: Sendable {

@@ -107,7 +107,22 @@ tam ekran; `reveal` canlı (Finder açacağı için).
 **Değişen karar:** UserNotifications macOS 27'de pakete izin vermedi (bkz. ARCHITECTURE 4c) →
 `osascript` bildirimi; tıklayınca dosya açma yok. Doğukan bildirimin ekranda göründüğünü teyit etti (2026-10-23).
 
-## M4 — SwiftUI app MVP
+### v0.5 — yt-dlp güncelleme, ayarlar, tür klasörleri, altyazı/MP3, uygulama ✅ (2026-10-23)
+İstek (Doğukan): "2-3-4".
+- **yt-dlp güncelleme**: Homebrew formülü 2 ay geride çıktı (brew 2026.8.19, GitHub 2026.10.21) →
+  resmi `yt-dlp_macos` SHA-256 doğrulamalı olarak Application Support/Kervan/bin'e; `-U` ile günlük güncelleme,
+  aktif indirme varken beklenir; yedek `brew upgrade`. Canlı: 2026.08.19 → 2026.10.21.
+- **Ayarlar** (`settings.json`, `kervan config`, IPC): klasör, tür klasörleri, varsayılan kalite, altyazı,
+  eşzamanlılık (canlı), otomatik güncelleme, pano izleme.
+- **Tür klasörleri** (Video/Müzik/Belgeler/Arşivler/Programlar/Diğer), **altyazı gömme**, **MP3** (kapak + etiket).
+  Canlı: `add -p mp3` → `~/Downloads/Kervan/Müzik/…mp3`, ffprobe kapak + başlık/sanatçı.
+- **Kervan.app** (SwiftPM, `kervan app install`): menü çubuğu, IDM tarzı pencere, ekleme, ayarlar, pano izleme.
+  Kendi penceresinin görüntüsü (`KERVAN_SNAPSHOT_DIR`) ile kontrol edildi: canlı ilerleme, hız, kalan.
+- Testler: Swift 60, eklenti 10.
+**Denenmedi:** menü çubuğu penceresi ve pano önerisi görsel olarak (ekran izni yok); oturum açılınca
+başlatma (SMAppService) ad-hoc imzalı uygulamada çalışmayabilir — hata ayarlarda gösterilir.
+
+## M4 — SwiftUI app MVP ✅ (v0.5'te, yukarıda)
 - `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır
 - ekranlar: Ekle (URL + preset + klasör), Kuyruk listesi (başlık, çubuk, hız, ETA, düğmeler),
   Detay (log), Ayarlar (eşzamanlılık, klasör, çerez tarayıcısı, araç yolları)
@@ -124,7 +139,7 @@ tam ekran; `reveal` canlı (Finder açacağı için).
 **Bitti kriteri:** linki kopyala → 3 sn içinde öneriyle kuyruğa; bitince bildirim; dock'ta yüzde.
 **Süre:** ~1–2 saat model işi.
 
-## M6 — Ekler: altyazı, ses, başlıklar
+## M6 — Ekler: altyazı, ses, başlıklar (altyazı + MP3 v0.5'te ✅; elle başlık ve diğer tarayıcı çerezleri kaldı)
 - altyazı: `--write-subs --sub-langs tr,en`, `--embed-subs`
 - audio preset: mp3/m4a, `--embed-thumbnail --embed-metadata`
 - HTTP: referer / User-Agent / özel başlıklar elle girilebilir

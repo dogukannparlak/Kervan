@@ -209,17 +209,7 @@ struct QueueWatcher {
 }
 
 enum QueueTable {
-    static func label(_ state: ItemState) -> String {
-        switch state {
-        case .queued: "sırada"
-        case .downloading: "iniyor"
-        case .postprocessing: "işleniyor"
-        case .paused: "duraklatıldı"
-        case .failed: "hata"
-        case .canceled: "iptal"
-        case .done: "bitti"
-        }
-    }
+    static func label(_ state: ItemState) -> String { state.label }
 
     static func print(_ items: [DownloadItem]) {
         lines(items).forEach { Swift.print($0) }

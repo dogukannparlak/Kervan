@@ -1,9 +1,9 @@
 # Kervan
 
 > IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: M3 bitti (2026-10-23)** — Brave eklentisi sayfada oynayan videoyu (mp4, HLS, DASH) ağ trafiğinden
-> yakalar ve tek tıkla arka plandaki `kervand` kuyruğuna gönderir. Video siteleri (yt-dlp), giriş isteyen
-> sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2). SwiftUI uygulaması M4'te.
+> **Durum: v0.5 (2026-10-23)** — menü çubuğu uygulaması + arka plan servisi + Brave eklentisi.
+> Videonun üstünde "İndir" düğmesi ve kalite seçimi, kuyruk (durdur/devam/iptal), bildirim, pano izleme,
+> tür klasörleri, altyazı, MP3, yt-dlp'nin kendiliğinden güncellenmesi.
 
 ## Hızlı başlangıç
 
@@ -12,6 +12,7 @@ scripts/install-deps.sh                # yt-dlp, ffmpeg, aria2, deno
 swift build -c release
 .build/release/kervan service install  # kervand'ı LaunchAgent olarak kurar ve başlatır
 .build/release/kervan extension install # Brave/Chrome/Edge köprüsü (Native Messaging)
+.build/release/kervan app install       # ~/Applications/Kervan.app (menü çubuğu + pencere)
 alias kervan=$PWD/.build/release/kervan
 
 kervan add <url> [<url>…] -w           # kuyruğa ekle, -w: bitene kadar izle
@@ -23,13 +24,24 @@ kervan log 3 -n 50
 kervan formats <url>                   # kalite seçenekleri ve yaklaşık boyutlar (-p 720p gibi kullan)
 kervan reveal 3                        # bitmiş dosyayı Finder'da göster
 kervan get <url>                       # servissiz, ön planda tek indirme
-kervan doctor                          # araçlar + servis durumu
+kervan doctor                          # araçlar + servis + güncelleme durumu
+kervan update                          # yt-dlp'yi şimdi güncelle (servis günde bir kez kendisi yapar)
+kervan config [ad] [değer]             # ayarlar: maxParallel, categorize, subtitles, defaultPreset…
 kervan service status | uninstall
 ```
 
 Seçenekler (`add`/`get`): `-p best|1080p|720p|audio` ya da herhangi bir yükseklik (`480p`, `1440p`, `2160p`), `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
 `--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi), `--referer <sayfa>`,
 `--name <dosya adı>`.
+
+### Uygulama (Kervan.app)
+
+- **Menü çubuğu** (↓ simgesi, inen sayısı): etkin indirmeler, durdur/devam, link yapıştırıp ekleme.
+- **Pencere**: IDM tarzı tablo (ad, durum, ilerleme, boyut, hız, kalan), filtreler, araç çubuğu, sağ tık;
+  çift tık dosyayı açar; ⌘N ekleme penceresi (kalite listesi, klasör, altyazı).
+- **Ayarlar** (⌘,): indirme klasörü, tür klasörleri, varsayılan kalite, altyazı, eşzamanlılık,
+  yt-dlp otomatik güncelleme, pano izleme, oturum açılınca başlatma.
+- **Pano izleme**: video sitesi ya da dosya linki kopyalanınca sağ üstte "Kervan'a ekle" önerisi.
 
 ### Brave eklentisi (bir kez)
 

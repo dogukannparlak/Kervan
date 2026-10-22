@@ -95,3 +95,32 @@ import Testing
         #expect(ToolUpdater.checksum(for: "yok", in: sums) == nil)
     }
 }
+
+@Suite struct ClipboardTests {
+    @Test(arguments: [
+        ("https://www.youtube.com/watch?v=jNQXAC9IVRw", true),
+        ("https://youtu.be/jNQXAC9IVRw", true),
+        ("https://www.youtube.com/", false),
+        ("https://www.youtube.com/@kanal", false),
+        ("https://www.instagram.com/reel/abc/", true),
+        ("https://x.com/nasa/status/123", true),
+        ("https://x.com/nasa", false),
+        ("https://m.facebook.com/watch?v=1", true),
+        ("https://github.com/yt-dlp/yt-dlp", false),
+        ("https://ftp.gnu.org/gnu/hello/hello-2.12.tar.gz", true),
+        ("https://example.com/kitap.pdf", true),
+        ("https://example.com/sayfa.html", false),
+        ("bir metin https://youtu.be/x", false),
+        ("ftp://youtu.be/x", false),
+    ])
+    func heuristics(text: String, expected: Bool) {
+        #expect((ClipboardHeuristics.looksDownloadable(text) != nil) == expected)
+    }
+
+    @Test func formatting() {
+        #expect(Format.bytes(267_900_000) == "267.9 MB")
+        #expect(Format.bytes(512) == "512 B")
+        #expect(Format.duration(3725) == "1:02:05")
+        #expect(ItemState.paused.label == "duraklatıldı")
+    }
+}
