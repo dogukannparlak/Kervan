@@ -35,34 +35,40 @@ public struct ResolvedLink: Sendable, Equatable {
 }
 
 public protocol LinkResolving: Sendable {
-    func resolve(_ url: URL, cookies: CookiePolicy) async throws -> ResolvedLink
+    func resolve(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> ResolvedLink
+}
+
+extension LinkResolving {
+    public func resolve(_ url: URL, cookies: CookiePolicy) async throws -> ResolvedLink {
+        try await resolve(url, cookies: cookies, context: RequestContext())
+    }
 }
 
 /// `URLClassifier` + çerez yedeği: site giriş isterse yedek tarayıcının çereziyle bir kez daha dener.
 public struct LinkResolver: LinkResolving {
     let head: any HeadFetching
-    let probe: @Sendable (URL, String?) async throws -> ProbeResult
+    let probe: @Sendable (URL, String?, RequestContext) async throws -> ProbeResult
 
     public init(ytDlp: YtDlpAdapter, head: any HeadFetching = URLSessionHeadFetcher()) {
-        self.init(head: head, probe: { try await ytDlp.probe($0, cookiesFromBrowser: $1) })
+        self.init(head: head, probe: { try await ytDlp.probe($0, cookiesFromBrowser: $1, context: $2) })
     }
 
-    init(head: any HeadFetching, probe: @escaping @Sendable (URL, String?) async throws -> ProbeResult) {
+    init(head: any HeadFetching, probe: @escaping @Sendable (URL, String?, RequestContext) async throws -> ProbeResult) {
         self.head = head
         self.probe = probe
     }
 
-    public func resolve(_ url: URL, cookies: CookiePolicy) async throws -> ResolvedLink {
+    public func resolve(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> ResolvedLink {
         let state = ResolveState(browser: cookies.explicit)
         let probe = probe
-        let classifier = URLClassifier(head: head, probe: { url in
+        let classifier = URLClassifier(head: head, headers: context.httpHeaders, probe: { url in
             do {
-                return try await probe(url, state.browser)
+                return try await probe(url, state.browser, context)
             } catch let error where state.browser == nil && YtDlpAdapter.isLoginError(error) {
                 guard let fallback = cookies.fallback else { throw error }
                 state.use(fallback, note: "site giriş istedi; \(fallback) çerezleri kullanıldı")
                 do {
-                    return try await probe(url, fallback)
+                    return try await probe(url, fallback, context)
                 } catch let error where YtDlpAdapter.isLoginError(error) {
                     throw EngineError.loginRequired(browser: fallback, detail: String(describing: error))
                 }

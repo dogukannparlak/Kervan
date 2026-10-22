@@ -46,8 +46,9 @@ public struct YtDlpAdapter: Sendable {
     }
 
     /// `cookiesFromBrowser`: yt-dlp `--cookies-from-browser` değeri (ör. "brave").
-    public func probe(_ url: URL, cookiesFromBrowser: String? = nil) async throws -> ProbeResult {
-        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser) + ["--", url.absoluteString]
+    public func probe(_ url: URL, cookiesFromBrowser: String? = nil, context: RequestContext = RequestContext()) async throws -> ProbeResult {
+        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser)
+            + Self.headerArguments(context) + ["--", url.absoluteString]
         let process = try runner.start(executable, arguments: args, environment: environment)
         let result = await process.collect()
         guard result.status == 0 else {
@@ -63,13 +64,13 @@ public struct YtDlpAdapter: Sendable {
     /// `playlistItems`: yt-dlp `--playlist-items` ifadesi ("1,3", "1:5"); nil ise yalnız tek video.
     /// Her biten dosya için bir `.completed` olayı gelir.
     public func download(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
-                         playlistItems: String? = nil) -> AsyncThrowingStream<DownloadEvent, Error> {
+                         playlistItems: String? = nil, context: RequestContext = RequestContext()) -> AsyncThrowingStream<DownloadEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     if preset.requiresFFmpeg && ffmpeg == nil { throw EngineError.ffmpegMissing }
-                    let args = downloadArguments(url, preset: preset, to: directory,
-                                                 cookiesFromBrowser: cookiesFromBrowser, playlistItems: playlistItems)
+                    let args = downloadArguments(url, preset: preset, to: directory, cookiesFromBrowser: cookiesFromBrowser,
+                                                 playlistItems: playlistItems, context: context)
                     let process = try runner.start(executable, arguments: args, environment: environment)
                     var tracker = YtDlpProgressTracker()
                     var stderr: [String] = []
@@ -100,14 +101,17 @@ public struct YtDlpAdapter: Sendable {
     }
 
     func downloadArguments(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
-                           playlistItems: String? = nil) -> [String] {
+                           playlistItems: String? = nil, context: RequestContext = RequestContext()) -> [String] {
+        // yt-dlp şablonunda % özel karakter; ipucu adında %% olarak kaçırılır.
+        let template = context.filename.map { $0.replacingOccurrences(of: "%", with: "%%") + ".%(ext)s" }
+            ?? "%(title).200B [%(id)s].%(ext)s"
         let playlist = playlistItems.map { ["--yes-playlist", "--playlist-items", $0] } ?? ["--no-playlist"]
         var args = [
             "--newline", "--progress", "--color", "never",
             "--retries", "10", "--fragment-retries", "10",
             "-f", preset.format,
             "-P", directory.path,
-            "-o", "%(title).200B [%(id)s].%(ext)s",
+            "-o", template,
             "--progress-template", "download:\(YtDlpProgressTracker.downloadPrefix)|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s",
             "--progress-template", "postprocess:\(YtDlpProgressTracker.postprocessPrefix)|%(progress.status)s|%(progress.postprocessor)s",
             "--print", "video:\(YtDlpProgressTracker.infoPrefix)|%(format_id)s|%(filesize,filesize_approx)s",
@@ -115,7 +119,12 @@ public struct YtDlpAdapter: Sendable {
         ]
         if let ffmpeg { args += ["--ffmpeg-location", ffmpeg.path] }
         if let container = preset.container { args += ["--merge-output-format", container] }
-        return args + playlist + Self.cookieArguments(cookiesFromBrowser) + preset.extraArgs + ["--", url.absoluteString]
+        return args + playlist + Self.cookieArguments(cookiesFromBrowser) + Self.headerArguments(context)
+            + preset.extraArgs + ["--", url.absoluteString]
+    }
+
+    static func headerArguments(_ context: RequestContext) -> [String] {
+        context.httpHeaders.sorted { $0.key < $1.key }.flatMap { ["--add-headers", "\($0.key):\($0.value)"] }
     }
 
     static func cookieArguments(_ browser: String?) -> [String] {

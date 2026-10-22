@@ -1,9 +1,9 @@
 # Kervan
 
 > IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: M2 bitti (2026-10-23)** — arka plan servisi `kervand` + kalıcı kuyruk çalışıyor. Video siteleri
-> (yt-dlp), giriş isteyen sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2).
-> Sayfadaki videoyu yakalayan Brave eklentisi M3'te.
+> **Durum: M3 bitti (2026-10-23)** — Brave eklentisi sayfada oynayan videoyu (mp4, HLS, DASH) ağ trafiğinden
+> yakalar ve tek tıkla arka plandaki `kervand` kuyruğuna gönderir. Video siteleri (yt-dlp), giriş isteyen
+> sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2). SwiftUI uygulaması M4'te.
 
 ## Hızlı başlangıç
 
@@ -11,6 +11,7 @@
 scripts/install-deps.sh                # yt-dlp, ffmpeg, aria2, deno
 swift build -c release
 .build/release/kervan service install  # kervand'ı LaunchAgent olarak kurar ve başlatır
+.build/release/kervan extension install # Brave/Chrome/Edge köprüsü (Native Messaging)
 alias kervan=$PWD/.build/release/kervan
 
 kervan add <url> [<url>…] -w           # kuyruğa ekle, -w: bitene kadar izle
@@ -25,7 +26,19 @@ kervan service status | uninstall
 ```
 
 Seçenekler (`add`/`get`): `-p best|1080p|720p|audio`, `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
-`--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi).
+`--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi), `--referer <sayfa>`,
+`--name <dosya adı>`.
+
+### Brave eklentisi (bir kez)
+
+1. `kervan extension install`
+2. `brave://extensions` → sağ üstte **Geliştirici modu** → **Paketlenmemiş öğe yükle** → bu repodaki `extension/`
+3. Kimlik `ifkabkcjdlkjbgijfnphgecoggfjdgek` görünmeli.
+
+Kullanım: video oynayan sayfada araç çubuğundaki **K** simgesinin rozeti yakalanan medya sayısını
+gösterir; açılan pencereden **İndir** (yakalanan akış) ya da **Sayfayı indir** (yt-dlp, site
+destekliyorsa en iyi yol). Sağ tık → "Kervan ile indir" bağlantı, video ve sayfa için de var.
+Eklenti testleri: `node --test extension/test/`.
 
 ---
 
@@ -170,13 +183,14 @@ Kervan/
 │   ├── QueueKit/                ← state machine, SQLite, eşzamanlılık
 │   ├── KervanIPC/               ← soket protokolü, sunucu/istemci, dosya yolları
 │   ├── kervand/                 ← servis (LaunchAgent)
+│   ├── kervan-native-host/      ← tarayıcı eklentisi köprüsü (Native Messaging)
 │   └── kervan/                  ← CLI
 ├── Tests/
 │   ├── EngineCoreTests/         ← MockProcess ile, ağsız
 │   ├── QueueKitTests/
 │   └── Integration/             ← gerçek indirme (ağ ister, ayrı çalıştırılır)
 ├── app/                         ← Kervan.app Xcode projesi (M3); kök paketi yerel bağımlılık olarak kullanır
-├── extension/                   ← Brave/Chromium uzantısı (M7)
+├── extension/                   ← Brave/Chromium eklentisi (MV3): detect.js, background.js, popup, test/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   └── ROADMAP.md
@@ -195,7 +209,7 @@ Kervan/
 | **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | 1080p YouTube tek mp4; HTTP zip aria2 ile |
 | **M1.5** ✅ | Brave çerezi + çok videolu sayfa | giriş isteyen sitede otomatik çerez; sayfadaki videolar `--all` ile |
 | **M2** ✅ | `kervand` + kalıcı kuyruk | servis öldürülüp açılınca kuyruk kaldığı yerden sürer |
-| **M3** | Brave eklentisi: ağdan video yakalama | yt-dlp'nin tanımadığı sayfadaki video tek tıkla iner |
+| **M3** ✅ | Brave eklentisi: ağdan video yakalama | yt-dlp'nin tanımadığı sayfadaki video tek tıkla iner |
 | **M4** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
 | **M5** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
 | **M6** | Altyazı, mp3, başlıklar, diğer tarayıcı çerezleri | gömülü altyazı; mp3 + kapak |

@@ -134,6 +134,25 @@ CLI, app, bildirim ve dock aynı akıştan beslenir.
 - Sunucu bağlantı başına bir iş parçacığı kullanır, istekleri actor'e köprüler.
 - `kervan get` servissiz, ön planda tek indirme olarak kalır.
 
+## 4b. Tarayıcı eklentisi (M3)
+
+```
+Brave sekmesi ──webRequest (yalnız gözlem)──→ background.js ──storage.session (sekme başına)
+      │                                            │
+   popup / sağ tık ──sendNativeMessage──→ kervan-native-host ──soket──→ kervand
+```
+
+- `extension/detect.js` saf mantık (Node testli): yanıt başlıklarından medya türü (HLS, DASH, düz
+  dosya), Content-Range'den boyut, `.ts/.m4s` parçalarını, 300 KB altını, googlevideo ve reklam
+  alanlarını eler. HLS ana listesi okunup alt listeleri gizlenir.
+- Gönderilen istek: `url`, `referer` (sayfa), `userAgent` (tarayıcı), `title` (sekme başlığı →
+  dosya adı ipucu; yalnız genel çıkarıcıda ve düz dosyada kullanılır, YouTube gibi sitelerde site başlığı).
+- Aynı klasörde aynı ad varsa (diskte ya da kuyrukta) " (2)", " (3)" eklenir.
+- `kervan-native-host`: 4 bayt uzunluk + JSON; yalnız `ping`, `add`, `list`. Manifest
+  `~/Library/Application Support/<tarayıcı>/NativeMessagingHosts/com.dogukan.kervan.json`,
+  `allowed_origins` tek kimlik. `kervan extension install|uninstall`.
+- Çerezler eklentiden alınmaz; yt-dlp gerekirse `--cookies-from-browser brave` ile okur.
+
 ## 5. Eşzamanlılık modeli
 
 - Swift 6 strict concurrency. `QueueKit` bir actor; her aktif indirme kendi `Task`'ı.

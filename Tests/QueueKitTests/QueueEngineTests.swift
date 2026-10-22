@@ -37,11 +37,12 @@ final class FakeExecutor: DownloadExecuting, @unchecked Sendable {
 
 struct FakeResolver: LinkResolving {
     var entries = 0
+    var generic = false
 
-    func resolve(_ url: URL, cookies: CookiePolicy) async throws -> ResolvedLink {
+    func resolve(_ url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> ResolvedLink {
         let json: [String: Any] = entries > 0
             ? ["_type": "playlist", "title": "Liste", "entries": (1...entries).map { ["id": "\($0)", "title": "V\($0)", "url": "https://e.com/v\($0)/ok"] }]
-            : ["title": url.lastPathComponent]
+            : ["title": url.lastPathComponent, "extractor": generic ? "generic" : "youtube"]
         let probe = try JSONDecoder().decode(ProbeResult.self, from: JSONSerialization.data(withJSONObject: json))
         return ResolvedLink(kind: entries > 0 ? .playlist(probe) : .video(probe), cookiesBrowser: cookies.explicit, notes: [])
     }
@@ -66,8 +67,8 @@ func makeEngine(_ executor: FakeExecutor, store: ItemStore? = nil, resolver: Fak
 
 @discardableResult
 func addURL(_ engine: QueueEngine, _ url: String, selection: String? = nil) async throws -> [DownloadItem] {
-    let outcome = try await engine.add(url: URL(string: url)!, presetId: "1080p", destination: "/tmp/kervan-test",
-                                       cookies: CookiePolicy("none"), selection: selection)
+    let outcome = try await engine.add(url: URL(string: url)!, options: AddOptions(
+        destination: "/tmp/kervan-test", cookies: CookiePolicy("none"), selection: selection))
     guard case .added(let items, _) = outcome else { return [] }
     return items
 }
@@ -224,8 +225,8 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
     @Test func playlistNeedsSelectionThenCreatesChildren() async throws {
         let engine = try makeEngine(FakeExecutor(), resolver: FakeResolver(entries: 3))
         await engine.start()
-        let outcome = try await engine.add(url: URL(string: "https://e.com/list")!, presetId: "1080p", destination: "/tmp",
-                                           cookies: CookiePolicy("none"))
+        let outcome = try await engine.add(url: URL(string: "https://e.com/list")!,
+                                           options: AddOptions(destination: "/tmp", cookies: CookiePolicy("none")))
         guard case .needsSelection(let title, let entries, _) = outcome else {
             Issue.record("seçim istenmeliydi")
             return
@@ -243,6 +244,33 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
 
         _ = try await engine.apply(.remove, to: [groupId])
         #expect(await engine.list().isEmpty)
+    }
+
+    @Test func filenameHintIsMadeUnique() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "kervan-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data().write(to: directory.appending(path: "Sayfa.mp4"))
+
+        let engine = try makeEngine(FakeExecutor(), resolver: FakeResolver(generic: true))
+        func add() async throws -> DownloadItem? {
+            let outcome = try await engine.add(url: URL(string: "https://a.com/master.m3u8")!, options: AddOptions(
+                destination: directory.path, cookies: CookiePolicy("none"), context: RequestContext(filename: "Sayfa")))
+            guard case .added(let items, _) = outcome else { return nil }
+            return items.first
+        }
+        #expect(try await add()?.filename == "Sayfa (2)")
+        #expect(try await add()?.filename == "Sayfa (3)")
+        #expect(try await add()?.title == "Sayfa (4)")
+    }
+
+    @Test func nonGenericSiteIgnoresFilenameHint() async throws {
+        let engine = try makeEngine(FakeExecutor())
+        let outcome = try await engine.add(url: URL(string: "https://youtube.com/watch")!, options: AddOptions(
+            destination: "/tmp", cookies: CookiePolicy("none"), context: RequestContext(filename: "Sekme başlığı")))
+        guard case .added(let items, _) = outcome else { return }
+        #expect(items.first?.filename == nil)
+        #expect(items.first?.title == "watch")
     }
 
     @Test func subscribersReceiveUpdates() async throws {

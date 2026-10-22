@@ -12,7 +12,7 @@ struct KervanCommand: AsyncParsableCommand {
         version: kervanVersion,
         subcommands: [
             Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Log.self,
-            Get.self, Probe.self, Service.self, Doctor.self, Presets.self,
+            Get.self, Probe.self, Service.self, Extension.self, Doctor.self, Presets.self,
         ]
     )
 }
@@ -33,6 +33,14 @@ struct DownloadOptions: ParsableArguments {
 
     @Option(help: "Yalnız seçilen videolar, ör. 1,3 ya da 2-5.")
     var items: String?
+
+    @Option(help: "Referer başlığı (hotlink korumalı dosyalar için sayfa adresi).")
+    var referer: String?
+
+    @Option(help: "Dosya adı (uzantısız); verilmezse sitenin başlığı.")
+    var name: String?
+
+    var context: RequestContext { RequestContext(referer: referer, filename: name) }
 
     var directory: URL { URL(filePath: NSString(string: dir).expandingTildeInPath) }
     var selection: String? { items ?? (all ? "all" : nil) }
@@ -63,16 +71,18 @@ struct Get: AsyncParsableCommand {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         let tools = try Toolbox()
-        let resolved = try await tools.resolver.resolve(url, cookies: CookiePolicy(options.cookies))
+        let context = options.context
+        let resolved = try await tools.resolver.resolve(url, cookies: CookiePolicy(options.cookies), context: context)
         resolved.notes.forEach { print("→ \($0)") }
         let events: AsyncThrowingStream<DownloadEvent, Error>
         switch resolved.kind {
         case .http:
             print("→ düz dosya (aria2)")
-            events = try tools.aria2().download(url, to: directory)
+            events = try tools.aria2().download(url, to: directory, context: context)
         case .video(let info):
             print("→ \(info.title ?? url.absoluteString)  [\(info.extractor ?? "?") · \(preset.id)]")
-            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: resolved.cookiesBrowser)
+            events = tools.ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: resolved.cookiesBrowser,
+                                          context: context)
         case .playlist(let info):
             let entries = info.entries ?? []
             guard let selection = options.selection else {

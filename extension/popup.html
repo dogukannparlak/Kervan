@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Kervan</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/32.png" alt="" width="20" height="20">
+    <h1>Kervan</h1>
+    <select id="preset" title="Kalite">
+      <option value="1080p">1080p</option>
+      <option value="best">En iyi</option>
+      <option value="720p">720p</option>
+      <option value="audio">Yalnız ses</option>
+    </select>
+  </header>
+
+  <section>
+    <button id="page" class="primary">Sayfayı indir</button>
+    <p class="hint" id="page-title"></p>
+  </section>
+
+  <section>
+    <h2>Yakalanan medya</h2>
+    <ul id="media"></ul>
+    <p class="hint" id="media-empty">Henüz yok. Videoyu oynatınca burada görünür.</p>
+  </section>
+
+  <p id="result" role="status"></p>
+
+  <section>
+    <h2>Kuyruk</h2>
+    <ul id="queue"></ul>
+  </section>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

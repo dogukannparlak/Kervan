@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Kervan",
+  "version": "0.3.0",
+  "description": "Sayfadaki videoyu yakalar ve Kervan indirme kuyruğuna gönderir.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzywuI3hvCQkBGjrm63kysMmfT8wWLZZWydZZaxlDcHwP9xeGoAmm4RqD+B20PskDxtvY1yAqlIZFqUJyBXg5PLZdXxpDLsnaUiGBS8NFXIeifQ/aVHeAH2Zd6S4aN09JS12AIhdOGCqZA0uvFfPk+GSVRCBSNnLo4A42PbEnj1sYdnzxM0n/hAz19gLfuKJDalicSd+YCKdBr7SGsQmfn/SFziikbMz8XCZiL0T7QAUkO/OmOhXf3fXtg7iHlflNnZyw9X+dxB+OJCI/nbamfXdY8twQme59EeUzu5R95gjXBJgDnaUgC4+1Ivwlm/glWCG8ikB1cJ1BGlpUBPQxwwIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "webRequest",
+    "nativeMessaging",
+    "contextMenus",
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Kervan",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}

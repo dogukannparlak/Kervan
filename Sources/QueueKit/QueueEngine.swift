@@ -12,6 +12,24 @@ public enum AddOutcome: Sendable, Equatable {
     case needsSelection(title: String?, entries: [ProbeResult.Entry], notes: [String])
 }
 
+public struct AddOptions: Sendable {
+    public var presetId: String
+    public var destination: String
+    public var cookies: CookiePolicy
+    /// Çok videolu sayfada seçim ("all", "1,3"); nil ise `needsSelection` döner.
+    public var selection: String?
+    public var context: RequestContext
+
+    public init(presetId: String = "1080p", destination: String, cookies: CookiePolicy = CookiePolicy("auto"),
+                selection: String? = nil, context: RequestContext = RequestContext()) {
+        self.presetId = presetId
+        self.destination = destination
+        self.cookies = cookies
+        self.selection = selection
+        self.context = context
+    }
+}
+
 public enum QueueAction: String, Codable, Sendable {
     case pause, resume, cancel, retry, remove
 }
@@ -123,24 +141,29 @@ public actor QueueEngine {
 
     // MARK: - Ekleme
 
-    public func add(url: URL, presetId: String, destination: String, cookies: CookiePolicy,
-                    selection: String? = nil) async throws -> AddOutcome {
-        guard try PresetStore.named(presetId) != nil else { throw QueueError.unknownPreset(presetId) }
-        let resolved = try await resolver.resolve(url, cookies: cookies)
-        var base = DownloadItem(url: url.absoluteString, kind: .video, host: DownloadItem.host(of: url), presetId: presetId,
-                                destination: destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
+    public func add(url: URL, options: AddOptions) async throws -> AddOutcome {
+        guard try PresetStore.named(options.presetId) != nil else { throw QueueError.unknownPreset(options.presetId) }
+        let resolved = try await resolver.resolve(url, cookies: options.cookies, context: options.context)
+        var base = DownloadItem(url: url.absoluteString, kind: .video, host: DownloadItem.host(of: url), presetId: options.presetId,
+                                destination: options.destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
+        base.referer = options.context.referer
+        base.userAgent = options.context.userAgent
+        base.filename = options.context.filename.map { uniqueFilename($0, in: options.destination) }
         var added: [DownloadItem]
         switch resolved.kind {
         case .http:
             base.kind = .http
-            base.title = url.lastPathComponent.isEmpty ? url.host() : url.lastPathComponent
+            base.title = base.filename ?? (url.lastPathComponent.isEmpty ? url.host() : url.lastPathComponent)
             added = try store.insert([base])
         case .video(let info):
-            base.title = info.title
+            // Genel çıkarıcı (m3u8, düz mp4) başlık olarak "master" gibi dosya adı verir; sayfa başlığı daha iyi.
+            base.title = info.extractor == "generic" ? (base.filename ?? info.title) : info.title
+            if info.extractor != "generic" { base.filename = nil }
             added = try store.insert([base])
         case .playlist(let info):
             let entries = info.entries ?? []
-            guard let selection else {
+            base.filename = nil
+            guard let selection = options.selection else {
                 return .needsSelection(title: info.title, entries: entries, notes: resolved.notes)
             }
             let indices = try PlaylistSelection.parse(selection, count: entries.count)
@@ -171,6 +194,22 @@ public actor QueueEngine {
         refreshGroups(of: added)
         schedule()
         return .added(added.compactMap { $0.id }.compactMap { items[$0] }, notes: resolved.notes)
+    }
+
+    /// Aynı klasörde aynı adlı dosya (uzantı ne olursa olsun) ya da kuyruk öğesi varsa " (2)", " (3)"… ekler.
+    /// Yoksa yt-dlp "zaten indirilmiş" deyip hiçbir şey indirmeden biter.
+    func uniqueFilename(_ name: String, in destination: String) -> String {
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: destination)) ?? []
+        let taken = Set(files.map { String($0.prefix(while: { $0 != "." })) })
+            .union(files.map { ($0 as NSString).deletingPathExtension })
+            .union(items.values.filter { $0.destination == destination }.compactMap(\.filename))
+        var candidate = name
+        var counter = 2
+        while taken.contains(candidate) {
+            candidate = "\(name) (\(counter))"
+            counter += 1
+        }
+        return candidate
     }
 
     // MARK: - Kullanıcı eylemleri

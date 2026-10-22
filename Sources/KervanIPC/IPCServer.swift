@@ -75,8 +75,10 @@ public final class IPCServer: Sendable {
                     throw QueueError.invalidURL(request.url ?? "")
                 }
                 let destination = request.dir ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Downloads/Kervan").path
-                let outcome = try await engine.add(url: url, presetId: request.preset ?? "1080p", destination: destination,
-                                                   cookies: CookiePolicy(request.cookies ?? "auto"), selection: request.items)
+                let context = RequestContext(referer: request.referer, userAgent: request.userAgent, filename: request.title)
+                let outcome = try await engine.add(url: url, options: AddOptions(
+                    presetId: request.preset ?? "1080p", destination: destination, cookies: CookiePolicy(request.cookies ?? "auto"),
+                    selection: request.items, context: context))
                 switch outcome {
                 case .added(let items, let notes):
                     return Response(ok: true, items: items, notes: notes)

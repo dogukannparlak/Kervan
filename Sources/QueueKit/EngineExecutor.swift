@@ -27,11 +27,11 @@ public struct EngineExecutor: DownloadExecuting {
             switch item.kind {
             case .http:
                 guard let aria2 else { throw EngineError.toolMissing(.aria2c) }
-                return aria2.download(url, to: directory)
+                return aria2.download(url, to: directory, context: item.context)
             case .video:
                 guard let preset = try PresetStore.named(item.presetId) else { throw QueueError.unknownPreset(item.presetId) }
                 return ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: item.cookiesBrowser,
-                                      playlistItems: item.playlistIndex.map(String.init))
+                                      playlistItems: item.playlistIndex.map(String.init), context: item.context)
             case .group:
                 throw QueueError.notDownloadable(item.id ?? 0)
             }

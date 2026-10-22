@@ -20,14 +20,16 @@ public struct HeadInfo: Sendable, Equatable {
 }
 
 public protocol HeadFetching: Sendable {
-    func head(_ url: URL) async throws -> HeadInfo
+    func head(_ url: URL, headers: [String: String]) async throws -> HeadInfo
 }
 
 public struct URLSessionHeadFetcher: HeadFetching {
     public init() {}
 
-    public func head(_ url: URL) async throws -> HeadInfo {
+    public func head(_ url: URL, headers: [String: String]) async throws -> HeadInfo {
         var request = URLRequest(url: url)
+        request.setValue(RequestContext.defaultUserAgent, forHTTPHeaderField: "User-Agent")
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         request.httpMethod = "HEAD"
         request.timeoutInterval = 10
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -42,15 +44,18 @@ public struct URLSessionHeadFetcher: HeadFetching {
 /// `yt-dlp -J` düz linklerde de başarılı döndüğü için probe hatası "http" anlamına gelmez.
 public struct URLClassifier: Sendable {
     let head: any HeadFetching
+    let headers: [String: String]
     let probe: @Sendable (URL) async throws -> ProbeResult
 
-    public init(head: any HeadFetching = URLSessionHeadFetcher(), probe: @escaping @Sendable (URL) async throws -> ProbeResult) {
+    public init(head: any HeadFetching = URLSessionHeadFetcher(), headers: [String: String] = [:],
+                probe: @escaping @Sendable (URL) async throws -> ProbeResult) {
         self.head = head
+        self.headers = headers
         self.probe = probe
     }
 
     public func classify(_ url: URL) async throws -> DownloadKind {
-        if let info = try? await head.head(url), Self.isDirectFile(info) { return .http }
+        if let info = try? await head.head(url, headers: headers), Self.isDirectFile(info) { return .http }
         return Self.kind(for: try await probe(url))
     }
 

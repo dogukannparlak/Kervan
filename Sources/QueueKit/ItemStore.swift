@@ -71,6 +71,13 @@ public final class ItemStore: Sendable {
                 t.column("finishedAt", .datetime)
             }
         }
+        migrator.registerMigration("v2-request-context") { db in
+            try db.alter(table: "item") { t in
+                t.add(column: "referer", .text)
+                t.add(column: "userAgent", .text)
+                t.add(column: "filename", .text)
+            }
+        }
         return migrator
     }
 }

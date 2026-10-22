@@ -56,7 +56,7 @@ dosya sağlam çıktı (ffprobe: 1080p h264 + aac, 10:34). HLS öğesi pause →
 (`probing` durumu kalktı). aria2 öğe başına ayrı süreç olarak kaldı (tek kalıcı süreç gerekmedi).
 **Bilinen eksik:** HLS akışlarında toplam boyut bilinmediği için yüzde gösterilmiyor.
 
-## M3 — Brave eklentisi: video yakalama (IDM'in asıl gücü)
+## M3 — Brave eklentisi: video yakalama (IDM'in asıl gücü) ✅ (2026-10-23)
 Amaç: yt-dlp'nin tanımadığı sitelerde bile, sayfada oynayan videoyu yakalamak.
 - Manifest V3 eklentisi (`extension/`), Brave/Chrome/Edge'de çalışır
 - **Ağ dinleme**: `webRequest.onHeadersReceived` (yalnız gözlem) ile Content-Type
@@ -73,6 +73,19 @@ Amaç: yt-dlp'nin tanımadığı sitelerde bile, sayfada oynayan videoyu yakalam
 **Bitti kriteri:** yt-dlp'nin desteklemediği, HTML5/HLS oynatıcılı bir sayfada rozet videoyu
 gösterir; tek tıkla iner ve oynar. YouTube sayfasında "Sayfayı indir" 1080p mp4 indirir.
 **Süre:** ~3–4 saat model işi.
+
+**Sonuç:** headless Brave 156 + geçici profil + `--load-extension` ile uçtan uca denendi
+(CDP üzerinden): yerel test sayfasında `<video>` mp4'ü ve fetch ile çekilen HLS ana listesi
+yakalandı, alt liste gizlendi, rozet "2". Popup → native host → kervand zinciriyle mp4 indi
+(Referer + tarayıcı User-Agent'ı, dosya adı sekme başlığından); HLS ikinci öğe "(2)" adını aldı ve
+inmeye başladı; YouTube "Sayfayı indir" başlığı yt-dlp'den aldı. Testler: Swift 46, eklenti 7.
+**Bulunanlar:** w3schools aria2'nin varsayılan User-Agent'ını 403 ile reddediyor → aria2 ve HEAD
+artık tarayıcı kimliğiyle gidiyor. Aynı sayfa başlığıyla iki öğe aynı dosya adını alınca yt-dlp
+"zaten var" deyip boş bitiyordu → ad benzersizleştirme.
+**Kararlar:** çerezler aria2'ye geçirilmez ve diske yazılmaz (yt-dlp `--cookies-from-browser`
+kullanır); eklentiye köprüde yalnız `ping/add/list` açık; eklenti kimliği manifest `key` ile sabit.
+**Doğukan'ın Brave'inde denenmedi:** eklentiyi elle yükleyip gerçek bir sitede denemesi gerekiyor
+(sağ tık menüsü ve bildirimler headless'ta denenemedi).
 
 ## M4 — SwiftUI app MVP
 - `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır

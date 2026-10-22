@@ -1,3 +1,4 @@
+import EngineCore
 import Foundation
 import GRDB
 
@@ -43,6 +44,10 @@ public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, Fetchabl
     public var host: String
     public var presetId: String
     public var cookiesBrowser: String?
+    /// Tarayıcı eklentisinden: sayfa adresi, tarayıcı kimliği, sayfa başlığından dosya adı.
+    public var referer: String?
+    public var userAgent: String?
+    public var filename: String?
     public var destination: String
     public var state: ItemState
     public var attempt: Int
@@ -79,6 +84,10 @@ public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, Fetchabl
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+
+    public var context: RequestContext {
+        RequestContext(referer: referer, userAgent: userAgent, filename: filename)
     }
 
     public var fraction: Double? {

@@ -2,11 +2,18 @@ import EngineCore
 import Foundation
 import QueueKit
 
-public let kervanVersion = "0.2.0"
+public let kervanVersion = "0.3.0"
 
 /// Kervan'ın dosya yerleri. `KERVAN_HOME` ile değiştirilebilir (geliştirme/test).
 public struct KervanPaths: Sendable {
     public static let launchAgentLabel = "com.dogukan.kervand"
+    public static let nativeHostName = "com.dogukan.kervan"
+    /// `extension/manifest.json` içindeki `key`'den türeyen sabit kimlik.
+    public static let extensionID = "ifkabkcjdlkjbgijfnphgecoggfjdgek"
+    /// Native Messaging manifest'lerinin gideceği tarayıcı klasörleri (Application Support altında).
+    public static let browserDirectories = [
+        "BraveSoftware/Brave-Browser", "Google/Chrome", "Chromium", "Microsoft Edge", "Vivaldi",
+    ]
 
     public let home: URL
 
@@ -44,9 +51,15 @@ public struct Request: Codable, Sendable {
     public var items: String?
     public var ids: [Int64]?
     public var lines: Int?
+    /// Tarayıcı eklentisinden gelen bağlam.
+    public var referer: String?
+    public var userAgent: String?
+    /// Dosya adı ipucu (sayfa başlığı).
+    public var title: String?
 
     public init(cmd: Command, url: String? = nil, preset: String? = nil, dir: String? = nil, cookies: String? = nil,
-                items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil) {
+                items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil, referer: String? = nil,
+                userAgent: String? = nil, title: String? = nil) {
         self.cmd = cmd
         self.url = url
         self.preset = preset
@@ -55,6 +68,9 @@ public struct Request: Codable, Sendable {
         self.items = items
         self.ids = ids
         self.lines = lines
+        self.referer = referer
+        self.userAgent = userAgent
+        self.title = title
     }
 }
 

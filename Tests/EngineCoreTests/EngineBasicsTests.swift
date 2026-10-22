@@ -64,3 +64,20 @@ import Testing
         #expect(status.event.eta == nil)
     }
 }
+
+@Suite struct RequestContextTests {
+    @Test func filenameIsSanitized() {
+        #expect(RequestContext(filename: "  Film: Bölüm 1/2 | \"HD\"  ").filename == "Film Bölüm 1 2 HD")
+        #expect(RequestContext(filename: "...").filename == nil)
+        #expect(RequestContext.sanitize(String(repeating: "a", count: 300)).count == 150)
+    }
+
+    @Test func headersReachYtDlpArguments() {
+        let adapter = YtDlpAdapter(executable: fakeYtDlp, ffmpeg: nil, runner: MockRunner(lines: [], status: 0), environment: [:])
+        let args = adapter.downloadArguments(URL(string: "https://x/v.m3u8")!, preset: preset1080, to: URL(filePath: "/tmp"),
+                                             context: RequestContext(referer: "https://site/page", userAgent: "UA", filename: "Ad %50"))
+        #expect(args.contains("Referer:https://site/page"))
+        #expect(args.contains("User-Agent:UA"))
+        #expect(args.firstIndex(of: "-o").map { args[$0 + 1] } == "Ad %%50.%(ext)s")
+    }
+}

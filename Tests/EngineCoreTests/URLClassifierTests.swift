@@ -5,7 +5,7 @@ import Testing
 struct StubHead: HeadFetching {
     let info: HeadInfo?
 
-    func head(_ url: URL) async throws -> HeadInfo {
+    func head(_ url: URL, headers: [String: String]) async throws -> HeadInfo {
         guard let info else { throw URLError(.badServerResponse) }
         return info
     }

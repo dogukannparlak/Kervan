@@ -31,6 +31,42 @@ public struct ProgressEvent: Sendable, Equatable {
     }
 }
 
+/// Tarayıcıdan gelen bağlam: Referer/User-Agent (hotlink korumalı CDN'ler) ve dosya adı ipucu (sayfa başlığı).
+public struct RequestContext: Sendable, Codable, Equatable {
+    public var referer: String?
+    public var userAgent: String?
+    /// Uzantısız dosya adı; nil ise aracın kendi adı (yt-dlp başlığı, URL'deki ad).
+    public var filename: String?
+
+    public init(referer: String? = nil, userAgent: String? = nil, filename: String? = nil) {
+        self.referer = referer
+        self.userAgent = userAgent
+        self.filename = filename.map(Self.sanitize).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// Dosya sistemi ve yt-dlp şablonu için güvenli ad: `/ : \` ve kontrol karakterleri atılır, en fazla 150 karakter.
+    public static func sanitize(_ name: String) -> String {
+        let cleaned = name.unicodeScalars.map { scalar -> String in
+            if CharacterSet.controlCharacters.contains(scalar) || "/\\:*?\"<>|".unicodeScalars.contains(scalar) { return " " }
+            return String(scalar)
+        }.joined()
+        let collapsed = cleaned.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return String(collapsed.prefix(150)).trimmingCharacters(in: CharacterSet(charactersIn: " ."))
+    }
+
+    /// Tarayıcı kimliği verilmediyse kullanılan değer. Bazı sunucular aracın kendi kimliğini
+    /// (ör. `aria2/1.37.0`) 403 ile reddediyor (w3schools, 2026-10-23).
+    public static let defaultUserAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+
+    var httpHeaders: [String: String] {
+        var headers: [String: String] = [:]
+        if let referer { headers["Referer"] = referer }
+        if let userAgent { headers["User-Agent"] = userAgent }
+        return headers
+    }
+}
+
 public enum DownloadEvent: Sendable, Equatable {
     case progress(ProgressEvent)
     /// Ayrıştırılmayan araç çıktısı (log halkası için).

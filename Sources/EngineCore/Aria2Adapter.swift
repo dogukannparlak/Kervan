@@ -15,7 +15,7 @@ public struct Aria2Adapter: Sendable {
         self.connections = connections
     }
 
-    public func download(_ url: URL, to directory: URL) -> AsyncThrowingStream<DownloadEvent, Error> {
+    public func download(_ url: URL, to directory: URL, context: RequestContext = RequestContext()) -> AsyncThrowingStream<DownloadEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 var process: (any RunningProcess)?
@@ -27,10 +27,14 @@ public struct Aria2Adapter: Sendable {
                     }
                     defer { logs.cancel() }
 
-                    let gid: String = try await rpc.call("aria2.addUri", [.array([.string(url.absoluteString)]), .object([
+                    var options: [String: JSONValue] = [
                         "split": .string(String(connections)),
                         "max-connection-per-server": .string(String(connections)),
-                    ])])
+                    ]
+                    if let referer = context.referer { options["referer"] = .string(referer) }
+                    options["user-agent"] = .string(context.userAgent ?? RequestContext.defaultUserAgent)
+                    if let name = context.filename, !url.pathExtension.isEmpty { options["out"] = .string("\(name).\(url.pathExtension)") }
+                    let gid: String = try await rpc.call("aria2.addUri", [.array([.string(url.absoluteString)]), .object(options)])
 
                     while true {
                         try await Task.sleep(for: .milliseconds(500))
