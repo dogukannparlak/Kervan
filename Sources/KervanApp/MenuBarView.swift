@@ -44,7 +44,7 @@ struct MenuBarView: View {
             HStack {
                 Button("Pencereyi aç") {
                     openWindow(id: "main")
-                    NSApp.activate()
+                    MainWindow.show()
                 }
                 SettingsLink { Text("Ayarlar…") }
                 Spacer()

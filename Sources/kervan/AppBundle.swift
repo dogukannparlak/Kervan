@@ -4,7 +4,8 @@ import KervanIPC
 /// SwiftPM çıktısından macOS uygulama paketi kurar: Contents/{MacOS/<ikili>, Resources/*.bundle + AppIcon.icns,
 /// Info.plist}, ad-hoc imzalı. Servis ("Kervan Agent.app") ve uygulama ("Kervan.app") aynı yolu kullanır.
 enum AppBundle {
-    static func build(at app: URL, executable: String, bundleID: String, from here: URL) throws {
+    /// `dock`: false ise LSUIElement (Dock'ta görünmez; servis paketi), true ise normal uygulama.
+    static func build(at app: URL, executable: String, bundleID: String, from here: URL, dock: Bool = false) throws {
         let fileManager = FileManager.default
         let contents = app.appending(path: "Contents")
         try? fileManager.removeItem(at: app)
@@ -31,7 +32,7 @@ enum AppBundle {
             "CFBundleIconFile": "AppIcon",
             "CFBundleShortVersionString": kervanVersion,
             "CFBundleVersion": kervanVersion,
-            "LSUIElement": true,  // Dock'ta değil, menü çubuğunda
+            "LSUIElement": !dock,
             "LSMinimumSystemVersion": "15.0",
             "NSHighResolutionCapable": true,
         ]

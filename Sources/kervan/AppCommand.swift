@@ -21,7 +21,8 @@ struct AppCommand: ParsableCommand {
             quit.arguments = ["-x", "KervanApp"]
             try? quit.run()
             quit.waitUntilExit()
-            try AppBundle.build(at: app, executable: "KervanApp", bundleID: "com.dogukan.kervan", from: AppBundle.buildDirectory)
+            try AppBundle.build(at: app, executable: "KervanApp", bundleID: "com.dogukan.kervan", from: AppBundle.buildDirectory,
+                                dock: true)
             let open = Process()
             open.executableURL = URL(filePath: "/usr/bin/open")
             open.arguments = [app.path]
