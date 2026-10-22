@@ -12,7 +12,7 @@ import Testing
     @Test func optionsMatchRealDownload() throws {
         let options = QualityPlanner.options(from: try bigBuckBunny())
         #expect(options.first?.label == "2160p60")
-        #expect(options.last?.preset == "audio")
+        #expect(options.suffix(2).map(\.preset) == ["audio", "mp3"])
         let hd = try #require(options.first { $0.preset == "1080p" })
         #expect(hd.label == "1080p60")
         let size = Double(try #require(hd.size))

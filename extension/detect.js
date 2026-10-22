@@ -135,7 +135,7 @@ export function formatBytes(bytes) {
 export function qualityRows(options = []) {
   return options.map((option) => ({
     preset: option.preset,
-    label: option.preset === 'audio' ? 'Yalnız ses (m4a)' : option.label,
+    label: { audio: 'Yalnız ses (m4a)', mp3: 'MP3 (kapak ve etiketli)' }[option.preset] || option.label,
     detail: option.size ? `~${formatBytes(option.size)}` : '',
   }));
 }

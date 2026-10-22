@@ -7,16 +7,23 @@ import QueueKit
 /// istekler `QueueEngine` actor'üne köprülenir.
 public final class IPCServer: Sendable {
     private let engine: QueueEngine
+    private let settings: SettingsStore
+    private let updater: (@Sendable () async throws -> UpdateState)?
     private let listenFD: Int32
 
-    public init(path: URL, engine: QueueEngine) throws {
+    public init(path: URL, engine: QueueEngine, settings: SettingsStore,
+                updater: (@Sendable () async throws -> UpdateState)? = nil) throws {
         self.engine = engine
+        self.settings = settings
+        self.updater = updater
         listenFD = try UnixSocket.listen(path: path.path)
     }
 
     /// Dinlemeyen sunucu; testler `serve`'ü doğrudan bir socketpair ucuna bağlar.
-    init(engine: QueueEngine) {
+    init(engine: QueueEngine, settings: SettingsStore = SettingsStore(), updater: (@Sendable () async throws -> UpdateState)? = nil) {
         self.engine = engine
+        self.settings = settings
+        self.updater = updater
         listenFD = -1
     }
 
@@ -60,12 +67,12 @@ public final class IPCServer: Sendable {
                 try? connection.send(Response(ok: true))
                 continue
             }
-            let response = blocking { [engine] in await Self.handle(request, engine: engine) }
+            let response = blocking { [self] in await handle(request) }
             try? connection.send(response)
         }
     }
 
-    static func handle(_ request: Request, engine: QueueEngine) async -> Response {
+    func handle(_ request: Request) async -> Response {
         do {
             switch request.cmd {
             case .ping:
@@ -74,11 +81,14 @@ public final class IPCServer: Sendable {
                 guard let text = request.url, let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
                     throw QueueError.invalidURL(request.url ?? "")
                 }
-                let destination = request.dir ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Downloads/Kervan").path
+                // Klasör verilmediyse ayardaki indirme klasörü (+ açıksa tür klasörü).
+                let current = settings.value
                 let context = RequestContext(referer: request.referer, userAgent: request.userAgent, filename: request.title)
                 let outcome = try await engine.add(url: url, options: AddOptions(
-                    presetId: request.preset ?? "1080p", destination: destination, cookies: CookiePolicy(request.cookies ?? "auto"),
-                    selection: request.items, context: context))
+                    presetId: request.preset ?? current.defaultPreset, destination: request.dir ?? current.downloadDirectory,
+                    cookies: CookiePolicy(request.cookies ?? "auto"), selection: request.items, context: context,
+                    subtitles: (request.subtitles ?? current.subtitles) ? current.subtitleLanguages : nil,
+                    categorize: request.dir == nil && current.categorize))
                 switch outcome {
                 case .added(let items, let notes):
                     return Response(ok: true, items: items, notes: notes)
@@ -112,6 +122,16 @@ public final class IPCServer: Sendable {
                 let context = RequestContext(referer: request.referer, userAgent: request.userAgent)
                 let list = try await engine.qualities(url: url, cookies: CookiePolicy(request.cookies ?? "auto"), context: context)
                 return Response(ok: true, qualities: list)
+            case .settings:
+                return Response(ok: true, settings: settings.value, update: UpdateState.load(paths: settings.paths))
+            case .setSettings:
+                guard let new = request.settings else { return .failure("settings alanı gerekli.") }
+                guard try PresetStore.named(new.defaultPreset) != nil else { throw QueueError.unknownPreset(new.defaultPreset) }
+                try await settings.update(new)
+                return Response(ok: true, settings: settings.value)
+            case .update:
+                guard let updater else { return .failure("Güncelleyici bu serviste yok.") }
+                return Response(ok: true, update: try await updater())
             case .subscribe:
                 return .failure("subscribe burada işlenmez.")
             }

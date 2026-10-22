@@ -48,6 +48,8 @@ public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, Fetchabl
     public var referer: String?
     public var userAgent: String?
     public var filename: String?
+    /// Gömülecek altyazı dilleri ("tr,en"); nil ise altyazı yok.
+    public var subtitles: String?
     public var destination: String
     public var state: ItemState
     public var attempt: Int

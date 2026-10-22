@@ -78,6 +78,9 @@ public final class ItemStore: Sendable {
                 t.add(column: "filename", .text)
             }
         }
+        migrator.registerMigration("v3-subtitles") { db in
+            try db.alter(table: "item") { t in t.add(column: "subtitles", .text) }
+        }
         return migrator
     }
 }

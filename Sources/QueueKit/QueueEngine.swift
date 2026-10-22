@@ -19,14 +19,21 @@ public struct AddOptions: Sendable {
     /// Çok videolu sayfada seçim ("all", "1,3"); nil ise `needsSelection` döner.
     public var selection: String?
     public var context: RequestContext
+    /// Gömülecek altyazı dilleri; nil ise altyazı yok.
+    public var subtitles: String?
+    /// true ise `destination/<Kategori>/` altına iner.
+    public var categorize: Bool
 
     public init(presetId: String = "1080p", destination: String, cookies: CookiePolicy = CookiePolicy("auto"),
-                selection: String? = nil, context: RequestContext = RequestContext()) {
+                selection: String? = nil, context: RequestContext = RequestContext(), subtitles: String? = nil,
+                categorize: Bool = false) {
         self.presetId = presetId
         self.destination = destination
         self.cookies = cookies
         self.selection = selection
         self.context = context
+        self.subtitles = subtitles
+        self.categorize = categorize
     }
 }
 
@@ -55,7 +62,7 @@ public actor QueueEngine {
     private let executor: any DownloadExecuting
     private let resolver: any LinkResolving
     private let logs: LogStore?
-    private let config: Config
+    private var config: Config
 
     private var items: [Int64: DownloadItem] = [:]
     private var running: [Int64: Task<Void, Never>] = [:]
@@ -144,11 +151,16 @@ public actor QueueEngine {
     public func add(url: URL, options: AddOptions) async throws -> AddOutcome {
         guard try PresetStore.named(options.presetId) != nil else { throw QueueError.unknownPreset(options.presetId) }
         let resolved = try await resolver.resolve(url, cookies: options.cookies, context: options.context)
+        let kind: ItemKind = resolved.kind == .http ? .http : .video
+        let destination = options.categorize
+            ? (options.destination as NSString).appendingPathComponent(DownloadCategory.of(kind: kind, presetId: options.presetId, url: url).rawValue)
+            : options.destination
         var base = DownloadItem(url: url.absoluteString, kind: .video, host: DownloadItem.host(of: url), presetId: options.presetId,
-                                destination: options.destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
+                                destination: destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
         base.referer = options.context.referer
         base.userAgent = options.context.userAgent
-        base.filename = options.context.filename.map { uniqueFilename($0, in: options.destination) }
+        base.subtitles = options.subtitles
+        base.filename = options.context.filename.map { uniqueFilename($0, in: destination) }
         var added: [DownloadItem]
         switch resolved.kind {
         case .http:
@@ -211,6 +223,16 @@ public actor QueueEngine {
         }
         return candidate
     }
+
+    /// Ayarlardan gelen eşzamanlılık sınırları; hemen uygulanır (çalışanlar durdurulmaz).
+    public func updateLimits(maxParallel: Int, maxPerHost: Int) {
+        config.maxParallel = maxParallel
+        config.maxPerHost = maxPerHost
+        schedule()
+    }
+
+    /// Aktif (inen/işlenen) öğe var mı? Güncelleyici bunu bekler.
+    public var hasActiveDownloads: Bool { items.values.contains { $0.kind != .group && $0.state.isActive } }
 
     /// Bir linkin kalite seçenekleri (kuyruğa bir şey eklemez).
     public nonisolated func qualities(url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList {

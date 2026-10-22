@@ -12,18 +12,21 @@ struct KervanCommand: AsyncParsableCommand {
         version: kervanVersion,
         subcommands: [
             Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Reveal.self, Log.self,
-            Get.self, Probe.self, Formats.self, Service.self, Extension.self, Doctor.self, Presets.self,
+            Get.self, Probe.self, Formats.self, Update.self, Config.self, Service.self, Extension.self, Doctor.self, Presets.self,
         ]
     )
 }
 
 /// `add` ve `get`'in ortak seçenekleri.
 struct DownloadOptions: ParsableArguments {
-    @Option(name: .shortAndLong, help: "Kalite ön ayarı (`kervan presets`).")
-    var preset = "1080p"
+    @Option(name: .shortAndLong, help: "Kalite: best, 1080p, 720p, audio, mp3 ya da herhangi bir yükseklik (480p). Varsayılan: ayardaki.")
+    var preset: String?
 
-    @Option(name: .shortAndLong, help: "Hedef klasör.")
-    var dir = "~/Downloads/Kervan"
+    @Option(name: .shortAndLong, help: "Hedef klasör. Verilmezse ayardaki klasör (+ açıksa Video/Müzik… tür klasörü).")
+    var dir: String?
+
+    @Flag(name: .customLong("subs"), inversion: .prefixedNo, help: "Altyazıyı göm (diller ayardan). Verilmezse ayardaki değer.")
+    var subtitles: Bool?
 
     @Option(help: "Tarayıcı çerezleri: auto (giriş isterse Brave), none ya da brave/chrome/firefox/safari/edge.")
     var cookies = "auto"
@@ -42,12 +45,16 @@ struct DownloadOptions: ParsableArguments {
 
     var context: RequestContext { RequestContext(referer: referer, filename: name) }
 
-    var directory: URL { URL(filePath: NSString(string: dir).expandingTildeInPath) }
+    var settings: KervanSettings { KervanSettings.load() }
+    var presetId: String { preset ?? settings.defaultPreset }
+    /// Yalnız `-d` verildiyse; servis kendi ayarını kullansın diye nil gönderilir.
+    var explicitDirectory: URL? { dir.map { URL(filePath: NSString(string: $0).expandingTildeInPath) } }
+    var directory: URL { explicitDirectory ?? URL(filePath: settings.downloadDirectory) }
     var selection: String? { items ?? (all ? "all" : nil) }
 
     func validatedPreset() throws -> Preset {
-        guard let found = try PresetStore.named(preset) else {
-            throw ValidationError("Bilinmeyen preset: \(preset). Liste: kervan presets")
+        guard let found = try PresetStore.named(presetId) else {
+            throw ValidationError("Bilinmeyen preset: \(presetId). Liste: kervan presets")
         }
         return found
     }
@@ -171,25 +178,19 @@ struct Doctor: AsyncParsableCommand {
             let process = try SystemProcessRunner().start(path, arguments: tool.versionArguments, environment: locator.environment)
             let version = await process.collect().stdout.first ?? "?"
             print("✓ \(tool.rawValue): \(version)  (\(path.path))")
-            if tool == .ytDlp, let age = Self.ageInDays(ytDlpVersion: version), age > 60 {
-                print("  ! yt-dlp \(age) günlük; YouTube bozulabilir → brew upgrade yt-dlp")
+            if tool == .ytDlp, let age = ToolUpdater.ageInDays(version: version), age > 60 {
+                print("  ! yt-dlp \(age) günlük; YouTube bozulabilir → kervan update")
             }
         }
         if let version = IPCClient.ping() {
             print("✓ kervand: çalışıyor (\(version))")
+            let update = UpdateState.load()
+            let auto = KervanSettings.load().autoUpdate ? "açık" : "kapalı"
+            print("  otomatik güncelleme \(auto); son kontrol: \(update.lastCheck?.formatted() ?? "henüz yok") \(update.lastResult.map { "· \($0)" } ?? "")")
         } else {
             print("· kervand: çalışmıyor (kuyruk komutları için: kervan service install)")
         }
         if missing { throw ExitCode.failure }
-    }
-
-    /// "2026.08.19" → bugüne kaç gün.
-    static func ageInDays(ytDlpVersion: String) -> Int? {
-        let parts = ytDlpVersion.split(separator: ".").prefix(3).compactMap { Int($0) }
-        guard parts.count == 3,
-              let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
-        else { return nil }
-        return Calendar.current.dateComponents([.day], from: date, to: .now).day
     }
 }
 

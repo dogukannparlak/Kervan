@@ -30,6 +30,8 @@ public struct KervanPaths: Sendable {
     public var logs: URL { home.appending(path: "logs") }
     public var children: URL { home.appending(path: "children.txt") }
     public var bin: URL { home.appending(path: "bin") }
+    public var settings: URL { home.appending(path: "settings.json") }
+    public var updateState: URL { home.appending(path: "update-state.json") }
     public var launchAgentPlist: URL {
         FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/LaunchAgents/\(Self.launchAgentLabel).plist")
     }
@@ -44,6 +46,10 @@ public struct Request: Codable, Sendable {
         case reveal
         /// Linkin kalite seçenekleri (yt-dlp formatları).
         case formats
+        /// Ayarları oku / yaz (`settings` alanı).
+        case settings, setSettings
+        /// yt-dlp'yi şimdi güncelle.
+        case update
     }
 
     public var cmd: Command
@@ -60,10 +66,13 @@ public struct Request: Codable, Sendable {
     public var userAgent: String?
     /// Dosya adı ipucu (sayfa başlığı).
     public var title: String?
+    /// Altyazı gömülsün mü; nil ise ayardaki değer.
+    public var subtitles: Bool?
+    public var settings: KervanSettings?
 
     public init(cmd: Command, url: String? = nil, preset: String? = nil, dir: String? = nil, cookies: String? = nil,
                 items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil, referer: String? = nil,
-                userAgent: String? = nil, title: String? = nil) {
+                userAgent: String? = nil, title: String? = nil, subtitles: Bool? = nil, settings: KervanSettings? = nil) {
         self.cmd = cmd
         self.url = url
         self.preset = preset
@@ -75,6 +84,8 @@ public struct Request: Codable, Sendable {
         self.referer = referer
         self.userAgent = userAgent
         self.title = title
+        self.subtitles = subtitles
+        self.settings = settings
     }
 }
 
@@ -91,10 +102,13 @@ public struct Response: Codable, Sendable {
     public var notes: [String]?
     public var log: [String]?
     public var qualities: QualityList?
+    public var settings: KervanSettings?
+    public var update: UpdateState?
 
     public init(ok: Bool, error: String? = nil, event: Bool? = nil, version: String? = nil, items: [DownloadItem]? = nil,
                 removed: [Int64]? = nil, title: String? = nil, entries: [ProbeResult.Entry]? = nil,
-                notes: [String]? = nil, log: [String]? = nil, qualities: QualityList? = nil) {
+                notes: [String]? = nil, log: [String]? = nil, qualities: QualityList? = nil, settings: KervanSettings? = nil,
+                update: UpdateState? = nil) {
         self.ok = ok
         self.error = error
         self.event = event
@@ -106,6 +120,8 @@ public struct Response: Codable, Sendable {
         self.notes = notes
         self.log = log
         self.qualities = qualities
+        self.settings = settings
+        self.update = update
     }
 
     public static func failure(_ message: String) -> Response { Response(ok: false, error: message) }

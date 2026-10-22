@@ -91,6 +91,8 @@ enum QualityPlanner {
         }
         if bestAudio != nil {
             options.append(QualityOption(preset: "audio", label: "Yalnız ses", height: nil, size: audioSize))
+            // mp3 preset'i en iyi VBR (~245 kbit/s) üretir.
+            options.append(QualityOption(preset: "mp3", label: "MP3", height: nil, size: probe.duration.map { Int64($0 * 245 * 125) }))
         }
         return options
     }

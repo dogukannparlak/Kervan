@@ -30,9 +30,15 @@ do {
     let executor = try EngineExecutor(locator: ToolLocator())
     let engine = try QueueEngine(store: ItemStore(path: paths.database), executor: executor,
                                  resolver: executor.resolver, logs: LogStore(directory: paths.logs))
+    let settings = SettingsStore(paths: paths) { new in
+        await engine.updateLimits(maxParallel: new.maxParallel, maxPerHost: new.maxPerHost)
+    }
+    await engine.updateLimits(maxParallel: settings.value.maxParallel, maxPerHost: settings.value.maxPerHost)
     await engine.start()
-    let server = try IPCServer(path: paths.socket, engine: engine)
+    let updater = AutoUpdater(engine: engine, settings: settings, paths: paths)
+    let server = try IPCServer(path: paths.socket, engine: engine, settings: settings, updater: { try await updater.runNow() })
     server.start()
+    updater.start()
     log("kervand \(kervanVersion) hazır: \(paths.socket.path)")
 
     let notifier = Notifier()

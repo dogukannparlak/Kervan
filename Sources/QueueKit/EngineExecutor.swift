@@ -31,7 +31,8 @@ public struct EngineExecutor: DownloadExecuting {
             case .video:
                 guard let preset = try PresetStore.named(item.presetId) else { throw QueueError.unknownPreset(item.presetId) }
                 return ytDlp.download(url, preset: preset, to: directory, cookiesFromBrowser: item.cookiesBrowser,
-                                      playlistItems: item.playlistIndex.map(String.init), context: item.context)
+                                      playlistItems: item.playlistIndex.map(String.init), context: item.context,
+                                      subtitles: item.subtitles)
             case .group:
                 throw QueueError.notDownloadable(item.id ?? 0)
             }

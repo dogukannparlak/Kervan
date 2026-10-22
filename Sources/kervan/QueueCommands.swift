@@ -37,9 +37,9 @@ struct Add: AsyncParsableCommand {
         var added: [Int64] = []
         for text in urls {
             let url = try parseURL(text)
-            let response = try send(Request(cmd: .add, url: url.absoluteString, preset: options.preset, dir: options.directory.path,
-                                            cookies: options.cookies, items: options.selection, referer: options.referer,
-                                            title: options.name), with: client)
+            let response = try send(Request(cmd: .add, url: url.absoluteString, preset: options.preset,
+                                            dir: options.explicitDirectory?.path, cookies: options.cookies, items: options.selection,
+                                            referer: options.referer, title: options.name, subtitles: options.subtitles), with: client)
             response.notes?.forEach { print("→ \($0)") }
             if let entries = response.entries {
                 printSelectionHint(title: response.title, entries: entries)

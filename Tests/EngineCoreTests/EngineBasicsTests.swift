@@ -31,7 +31,7 @@ import Testing
 @Suite struct PresetTests {
     @Test func builtInPresetsLoad() throws {
         let presets = try PresetStore.builtIn()
-        #expect(presets.map(\.id) == ["1080p", "720p", "audio", "best"])
+        #expect(presets.map(\.id) == ["1080p", "720p", "audio", "best", "mp3"])
         #expect(try PresetStore.named("audio")?.requiresFFmpeg == false)
     }
 }

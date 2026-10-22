@@ -1,0 +1,8 @@
+{
+  "id": "mp3",
+  "label": "MP3 (en iyi VBR, kapak ve etiketler gömülü)",
+  "format": "ba/b",
+  "container": null,
+  "requiresFFmpeg": true,
+  "extraArgs": ["-x", "--audio-format", "mp3", "--audio-quality", "0", "--embed-thumbnail", "--embed-metadata"]
+}

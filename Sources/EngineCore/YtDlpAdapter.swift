@@ -64,13 +64,14 @@ public struct YtDlpAdapter: Sendable {
     /// `playlistItems`: yt-dlp `--playlist-items` ifadesi ("1,3", "1:5"); nil ise yalnız tek video.
     /// Her biten dosya için bir `.completed` olayı gelir.
     public func download(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
-                         playlistItems: String? = nil, context: RequestContext = RequestContext()) -> AsyncThrowingStream<DownloadEvent, Error> {
+                         playlistItems: String? = nil, context: RequestContext = RequestContext(),
+                         subtitles: String? = nil) -> AsyncThrowingStream<DownloadEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     if preset.requiresFFmpeg && ffmpeg == nil { throw EngineError.ffmpegMissing }
                     let args = downloadArguments(url, preset: preset, to: directory, cookiesFromBrowser: cookiesFromBrowser,
-                                                 playlistItems: playlistItems, context: context)
+                                                 playlistItems: playlistItems, context: context, subtitles: subtitles)
                     let process = try runner.start(executable, arguments: args, environment: environment)
                     var tracker = YtDlpProgressTracker()
                     var stderr: [String] = []
@@ -101,7 +102,8 @@ public struct YtDlpAdapter: Sendable {
     }
 
     func downloadArguments(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
-                           playlistItems: String? = nil, context: RequestContext = RequestContext()) -> [String] {
+                           playlistItems: String? = nil, context: RequestContext = RequestContext(),
+                           subtitles: String? = nil) -> [String] {
         // yt-dlp şablonunda % özel karakter; ipucu adında %% olarak kaçırılır.
         let template = context.filename.map { $0.replacingOccurrences(of: "%", with: "%%") + ".%(ext)s" }
             ?? "%(title).200B [%(id)s].%(ext)s"
@@ -119,6 +121,10 @@ public struct YtDlpAdapter: Sendable {
         ]
         if let ffmpeg { args += ["--ffmpeg-location", ffmpeg.path] }
         if let container = preset.container { args += ["--merge-output-format", container] }
+        // Altyazı yalnız görüntülü preset'lerde gömülür (mp4/mkv kabı); ses preset'lerinde atlanır.
+        if let subtitles, preset.container != nil {
+            args += ["--write-subs", "--sub-langs", subtitles, "--embed-subs"]
+        }
         return args + playlist + Self.cookieArguments(cookiesFromBrowser) + Self.headerArguments(context)
             + preset.extraArgs + ["--", url.absoluteString]
     }
