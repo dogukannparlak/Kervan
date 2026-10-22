@@ -7,12 +7,12 @@
 - README, ARCHITECTURE, ROADMAP; 2026-10-23'te gözden geçirildi (ffmpeg M1'e,
   `kervand` servisi, URL sınıflandırma, çerez notları, Brave uzantısı).
 
-## M1 — Paket + CLI tek indirme
+## M1 — Paket + CLI tek indirme ✅ (2026-10-23)
 Amaç: motoru GUI ve servis olmadan, ön planda çalıştırıp doğrulamak.
 - `brew install ffmpeg`; `scripts/install-deps.sh` (yt-dlp, ffmpeg, aria2, deno kontrolü)
 - kök `Package.swift`: `EngineCore`, `QueueKit` (boş iskelet), `kervan` hedefleri + testler
 - `ProcessRunner`, `URLClassifier`, `YtDlpAdapter`, `Aria2Adapter` (tek seferlik RPC), `FFmpegLocator`
-- `resources/presets/`: best, 1080p, 720p, audio
+- `Sources/EngineCore/Resources/presets/`: best, 1080p, 720p, audio
 - komutlar: `kervan get <url> [--preset 1080p] [--dir ~/Downloads/Kervan]`, `kervan probe <url>`, `kervan doctor`
 - MockProcess ile unit testler
 
@@ -20,6 +20,11 @@ Amaç: motoru GUI ve servis olmadan, ön planda çalıştırıp doğrulamak.
 iner, ilerleme satırı (yüzde · hız · ETA) güncellenir; `hello-2.12.tar.gz` aria2 ile iner;
 ffmpeg yolu bozukken video açık hatayla reddedilir; `swift test` geçer.
 **Süre:** ~1–2 saat model işi.
+
+**Sonuç (2026-10-23):** Big Buck Bunny (aqz-KE-bpKQ) `-p 1080p` ile 268 MB tek mp4 indi
+(ffprobe: h264 1920×1080 + aac); `hello-2.12.tar.gz` aria2 ile indi, `tar tzf` sağlam;
+`KERVAN_FFMPEG=/yok` ile video açık hatayla reddedildi; `swift test` 22/22.
+Henüz yok: Ctrl-C sonrası devam elle denenmedi; Instagram/X gibi diğer siteler denenmedi.
 
 ## M2 — `kervand` + kalıcı kuyruk
 - QueueKit: GRDB/SQLite, state machine, retry/backoff, çökme kurtarma

@@ -1,7 +1,19 @@
 # Kervan
 
 > IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: v0.1 — plan ve mimari (gözden geçirildi, 2026-10-23). Henüz kod yok.**
+> **Durum: M1 bitti (2026-10-23)** — `kervan get` CLI ile tek indirme çalışıyor. Kuyruk ve servis M2'de.
+
+## Hızlı başlangıç
+
+```bash
+scripts/install-deps.sh          # yt-dlp, ffmpeg, aria2, deno
+swift run kervan doctor          # araçlar ve sürümler
+swift run kervan get <url>       # varsayılan: 1080p mp4 → ~/Downloads/Kervan
+swift run kervan get <url> -p best -d ~/Desktop
+swift run kervan probe <url>     # türü ve metadata'yı göster, indirme
+swift run kervan presets
+swift test
+```
 
 Kervan, Internet Download Manager'ın macOS'ta yapmadığı şeyi yapar: video sitelerini
 (YouTube, Instagram, Twitter/X, VK, Reddit… yt-dlp'nin desteklediği her site)
@@ -17,7 +29,7 @@ Kendi indirme motorumuzu yazmıyoruz. Alanında en iyi hazır araçları, arkala
 | Araç | Görev | Durum (2026-10-23) |
 |---|---|---|
 | **yt-dlp** | Video siteleri: metadata, format seçimi, indirme, fragment-resume | ✅ 2026.08.19 (brew) |
-| **ffmpeg** | Ayrı gelen görüntü + ses akışlarını birleştirme (remux), mp3 çıkarma | ⏳ M1'de `brew install ffmpeg` (9.0.2) |
+| **ffmpeg** | Ayrı gelen görüntü + ses akışlarını birleştirme (remux), mp3 çıkarma | ✅ 9.0.2 (brew) |
 | **aria2c** | Doğrudan HTTP(S) linkleri: çok bağlantılı paralel indirme, JSON-RPC ile yönetim | ✅ 1.37.0 (brew) |
 | **deno** | yt-dlp'nin YouTube imza/JS çözümü için kullandığı JS çalışma ortamı | ✅ kurulu (brew) |
 
@@ -109,7 +121,7 @@ QueueKit state: queued → probing → downloading → postprocessing → done
 - **Pause/resume**: yt-dlp'de SIGINT + `.part` dosyasından devam; aria2'de RPC `pause`/`unpause`.
 - **Retry**: yt-dlp `--retries 10 --fragment-retries 10`; üstte öğe başına 3 deneme, exponential backoff.
 
-### Kalite ön ayarları (`resources/presets/*.json`)
+### Kalite ön ayarları (`Sources/EngineCore/Resources/presets/*.json`)
 
 | Preset | yt-dlp format seçimi (taslak) | Çıktı |
 |---|---|---|
@@ -143,9 +155,10 @@ Preset'ler veri olarak tutulur, kodda sabit değildir.
 ```
 Kervan/
 ├── README.md
-├── Package.swift                ← tek kök paket (M1'de yazılacak)
+├── Package.swift                ← tek kök paket
 ├── Sources/
 │   ├── EngineCore/              ← ProcessRunner, URLClassifier, adapter'lar
+│   │   └── Resources/presets/   ← preset JSON'ları (paket kaynağı)
 │   ├── QueueKit/                ← state machine, SQLite, eşzamanlılık
 │   ├── kervand/                 ← servis (LaunchAgent)
 │   └── kervan/                  ← CLI
@@ -156,7 +169,6 @@ Kervan/
 ├── app/                         ← Kervan.app Xcode projesi (M3); kök paketi yerel bağımlılık olarak kullanır
 ├── extension/                   ← Brave/Chromium uzantısı (M7)
 ├── resources/
-│   ├── presets/                 ← preset JSON'ları
 │   └── launchd/                 ← com.dogukan.kervand.plist
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -171,7 +183,7 @@ Kervan/
 | Aşama | Ne | Bitti kriteri |
 |---|---|---|
 | **M0** | Plan + mimari | bu belge ✅ |
-| **M1** | Paket + CLI tek indirme (ffmpeg dahil) | `kervan get <url>` 1080p sesli YouTube videosunu tek mp4 olarak indirir; HTTP zip aria2 ile iner |
+| **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | `kervan get <url>` 1080p sesli YouTube videosunu tek mp4 olarak indirir; HTTP zip aria2 ile iner |
 | **M2** | `kervand` + kalıcı kuyruk | 5 öğelik kuyruk sürerken servis öldürülür; yeniden başlayınca kaldığı yerden devam eder |
 | **M3** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
 | **M4** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
@@ -197,4 +209,4 @@ Varsayılan indirme dizini: `~/Downloads/Kervan/`.
 
 ---
 
-*Proje anayasası, v0.1. Kod M1'de başlar.*
+*Proje anayasası, v0.1.*

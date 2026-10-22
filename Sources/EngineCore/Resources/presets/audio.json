@@ -1,0 +1,8 @@
+{
+  "id": "audio",
+  "label": "Yalnız ses (m4a öncelikli; mp3 M6'da)",
+  "format": "ba[ext=m4a]/ba",
+  "container": null,
+  "requiresFFmpeg": false,
+  "extraArgs": []
+}

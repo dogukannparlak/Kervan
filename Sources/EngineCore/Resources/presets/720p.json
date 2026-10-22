@@ -1,0 +1,8 @@
+{
+  "id": "720p",
+  "label": "En fazla 720p, H.264 + AAC öncelikli (mp4)",
+  "format": "bv*[height<=720][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=720]+ba/b[height<=720]/b",
+  "container": "mp4",
+  "requiresFFmpeg": true,
+  "extraArgs": []
+}

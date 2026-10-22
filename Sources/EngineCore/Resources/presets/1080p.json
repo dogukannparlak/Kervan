@@ -1,0 +1,8 @@
+{
+  "id": "1080p",
+  "label": "En fazla 1080p, H.264 + AAC öncelikli (mp4)",
+  "format": "bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b",
+  "container": "mp4",
+  "requiresFFmpeg": true,
+  "extraArgs": []
+}

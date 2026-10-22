@@ -1,0 +1,8 @@
+{
+  "id": "best",
+  "label": "En iyi görüntü + ses, 4K/AV1/VP9 dahil (mkv)",
+  "format": "bv*+ba/b",
+  "container": "mkv",
+  "requiresFFmpeg": true,
+  "extraArgs": []
+}

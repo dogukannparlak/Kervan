@@ -30,22 +30,27 @@ politikası ve çıktı ayrıştırma tek yerde denetlenir.
 
 ### YtDlpAdapter
 - **Probe**: `-J --flat-playlist`. Başlık, süre, site, küçük resim, format listesi.
-- **Download** argümanları (taslak):
+- **Download** argümanları (`YtDlpAdapter.downloadArguments`):
   ```
-  yt-dlp --newline --no-colors --ffmpeg-location <yol>
-    -f <preset.format> --merge-output-format <preset.container>
-    --retries 10 --fragment-retries 10
-    -o "<hedef>/%(title).200B [%(id)s].%(ext)s"
-    --progress-template "download:KERVAN|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s"
+  yt-dlp --newline --progress --color never --no-playlist
+    --retries 10 --fragment-retries 10 -f <preset.format> -P <hedef>
+    -o "%(title).200B [%(id)s].%(ext)s"
+    --progress-template "download:KERVAN_DL|status|downloaded_bytes|total_bytes|total_bytes_estimate|speed|eta"
+    --progress-template "postprocess:KERVAN_PP|status|postprocessor"
+    --print "video:KERVAN_INFO|%(format_id)s|%(filesize,filesize_approx)s"
     --print "after_move:KERVAN_FILE|%(filepath)s"
+    --ffmpeg-location <yol> --merge-output-format <preset.container> -- <url>
   ```
-  Biçimli `_percent_str` alanları yerine ham sayılar okunur; boş alanlar `NA` gelir.
-  `KERVAN|` öneki olmayan satırlar log'a gider.
-- Birleştirme aşaması (`[Merger]` satırı) `postprocessing` olarak raporlanır.
+  - `KERVAN_INFO`: format kimliğindeki `+` sayısından parça sayısı (görüntü + ses = 2)
+    ve yaklaşık toplam boyut. İlerleme, biten parçaların baytı + o anki parça.
+  - Biçimli `_percent_str` yerine ham sayılar; boş alanlar `NA`.
+  - `KERVAN_PP` satırları **stderr'e** düşer (2026-10-23'te gözlendi); iki akış da okunur.
+  - `KERVAN_` öneki olmayan satırlar `DownloadEvent.log` olur.
 
 ### Aria2Adapter
-- Servis açılışında tek `aria2c --enable-rpc --rpc-listen-all=false
-  --rpc-secret=<rastgele> --continue=true --file-allocation=none` süreci başlatılır.
+- M1: her indirme için `aria2c --enable-rpc --rpc-listen-all=false --rpc-listen-port=<rastgele>
+  --rpc-secret=<rastgele> --stop-with-process=<kervan pid> --continue=true --file-allocation=none`
+  süreci açılır, bitince `aria2.shutdown`. M2: servis açılışında tek kalıcı süreç.
 - Öğe ekleme `aria2.addUri` (`max-connection-per-server=8`, `split=8`);
   ilerleme `aria2.tellStatus` ile saniyede 2 kez çekilir.
 - Pause/resume/cancel: `aria2.pause` / `aria2.unpause` / `aria2.remove`.
