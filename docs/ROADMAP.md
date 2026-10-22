@@ -1,93 +1,85 @@
 # Kervan — Yol Haritası
 
-> Her aşama tek oturumda bitirilebilecek küçüklükte tutuldu. "Bitti kriteri" bölümleri,
-> aşamayı kutlamanın ötesinde — işlendikten sonra bile objektif olarak test edilebilecek
-> göstergeler içerir.
+> Her aşama çalışan bir araç bırakır. "Bitti kriteri" elle test edilebilir olmalı.
+> Süreler, işi yapacak modelin (Claude) kod yazma süresidir; Doğukan'ın test süresi ayrı.
 
-## M0 — Plan & Mimari ✅ (şu an buradayız)
-- README, ARCHITECTURE, ROADMAP yazıldı
-- klasör iskeleti kuruldu (kod yok)
-- bağımlılık envanteri: yt-dlp ✅ · aria2 ✅ · ffmpeg ❌ (M6'da)
+## M0 — Plan & Mimari ✅
+- README, ARCHITECTURE, ROADMAP; 2026-10-23'te gözden geçirildi (ffmpeg M1'e,
+  `kervand` servisi, URL sınıflandırma, çerez notları, Brave uzantısı).
 
-## M1 — kervan-cli MVP
-Amaç: motoru GUI olmadan test etmek — CLI hızlıdır, hatalar görünürdür, iterasyon ucuzdur.
-- Swift Package (engine/) kurulur: ProcessRunner + YtDlpAdapter (probe/download)
-- komutlar: `kervan add <url> [--preset 1080p]`, `kervan list`, `kervan watch <id>`
-- tek indirme Sekansı: metadata → format seçimi → indirme → ProgressEvent akışı
-- klasik HTTP linki → Aria2Adapter'a yönlendirme (URLClassifier v0)
-- `resources/presets/*.json` ilk doldurma (best / 1080p / 720p-safe / audio)
-- scripts/: `install-deps.sh` (yt-dlp/aria2 kontrol + `brew upgrade`),
-  `run-cli.sh` (debug koşumu)
+## M1 — Paket + CLI tek indirme
+Amaç: motoru GUI ve servis olmadan, ön planda çalıştırıp doğrulamak.
+- `brew install ffmpeg`; `scripts/install-deps.sh` (yt-dlp, ffmpeg, aria2, deno kontrolü)
+- kök `Package.swift`: `EngineCore`, `QueueKit` (boş iskelet), `kervan` hedefleri + testler
+- `ProcessRunner`, `URLClassifier`, `YtDlpAdapter`, `Aria2Adapter` (tek seferlik RPC), `FFmpegLocator`
+- `resources/presets/`: best, 1080p, 720p, audio
+- komutlar: `kervan get <url> [--preset 1080p] [--dir ~/Downloads/Kervan]`, `kervan probe <url>`, `kervan doctor`
+- MockProcess ile unit testler
 
-**Bitti kriteri:** terminalden bir YouTube videosu 1080p hedefiyle iner; ilerleme
-satırı saniyede birkaç kez güncellenir; düz bir HTTP zip linki aria2 ile iner.
+**Bitti kriteri:** `kervan get` ile 1080p bir YouTube videosu **sesli tek mp4** olarak
+iner, ilerleme satırı (yüzde · hız · ETA) güncellenir; `hello-2.12.tar.gz` aria2 ile iner;
+ffmpeg yolu bozukken video açık hatayla reddedilir; `swift test` geçer.
+**Süre:** ~1–2 saat model işi.
 
-## M2 — Kuyruk Zaferi
-Amaç: "şu an 12 şey iniyor" hâlini güvenilir kılmak.
-- QueueKit: SQLite (GRDB) kalıcılığı — uygulama restart'ı atlatır
-- state machine: pause/resume/cancel/retry + exponential backoff
-- eşzamanlılık: maxParallel=3 + site başına yumuşatma (aynı siteye eşzamanlı script)
-- playlist: `--flat-playlist` → her giriş ayrı kuyruk öğesi (çocuk-ata bağlantısı)
-- log ring buffer + `kervan log <id>`
+## M2 — `kervand` + kalıcı kuyruk
+- QueueKit: GRDB/SQLite, state machine, retry/backoff, çökme kurtarma
+- `kervand` LaunchAgent + Unix socket protokolü; `kervan service install|uninstall|status`
+- CLI istemci: `add`, `list`, `pause`, `resume`, `cancel`, `retry`, `watch`, `log <id>`
+- eşzamanlılık: global 3 + site başına 2
+- playlist: `--flat-playlist` → çocuk öğeler
 
-**Bitti kriteri:** 5 öğeli kuyruk indirilirken uygulama kapatılır; yeniden açılışta
-3. öğe kaldığı yerden devam eder; başarısız bir öğe 3 deneme sonrası `failed` olur
-ve elle yeniden kuyruklanabilir.
+**Bitti kriteri:** 5 öğelik kuyruk sürerken `kervand` öldürülür; launchd yeniden
+başlatınca 3. öğe `.part`'tan devam eder; bozuk bir URL 3 denemeden sonra `failed`
+olur ve `kervan retry` ile yeniden kuyruğa girer.
+**Süre:** ~2–3 saat model işi.
 
-## M3 — SwiftUI App MVP
-Amaç: CLI'daki her şey pencereye, renkli ve çubuklu girer.
-- macOS app hedefi (Kervan.app) — engine paketine Consumer olur; UI-only katman
-- ekranlar: AddSheet (URL + preset + hedef klasör), QueueList (satır: başlık, bar,
-  hız, ETA, butonlar), DetailSheet (log izleyicisi), Settings (limitler, klasörler)
-- uygulama yaşam döngüsü: pencere kapansa da kuyruk sürsün (dock'ya devam)
+## M3 — SwiftUI app MVP
+- `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır
+- ekranlar: Ekle (URL + preset + klasör), Kuyruk listesi (başlık, çubuk, hız, ETA, düğmeler),
+  Detay (log), Ayarlar (eşzamanlılık, klasör, araç yolları)
+- servis kurulu değilse ilk açılışta kurar
 
-**Bitti kriteri:** hiç terminal kullanmadan bir video CLI'sız indirilir; kuyruk
-Pause/Resume düğmelerinden yönetilir.
+**Bitti kriteri:** terminal açmadan bir video eklenir, duraklatılır, devam ettirilir, biter.
+**Süre:** ~2–3 saat model işi.
 
-## M4 — UX Cila
-- macOS bildirimleri (tamamlanınca), Dock badge (eşzamanlı sayı veya toplam %)
-- ClipboardWatcher: panoya link kopyalanınca "Link algılandı → ekle?" çıkarımı
-  + yok sayma listesi (github.com, docs siteleri…)
-- sürükle-bırak: Finder'dan ve tarayıcıdan link bırakma
-- indirme klasörü seçici (Security-scoped bookmark ile kalıcı erişim)
+## M4 — UX cila
+- bildirim (bitti/hata), dock yüzdesi
+- ClipboardWatcher: "Link algılandı → ekle?" + yok sayma listesi
+- sürükle-bırak; klasör seçici (security-scoped bookmark)
 
-**Bitti kriteri:** linki kopyala → panoyu sezerek çıkan öneriyle 3 saniyede
-kuyruğa düşer; tamamlanınca macOS bildirimi gelir; dock ikonunda yüzde görünür.
+**Bitti kriteri:** linki kopyala → 3 sn içinde öneriyle kuyruğa; bitince bildirim; dock'ta yüzde.
+**Süre:** ~1–2 saat model işi.
 
-## M5 — "Her şey" (kapsam sözünün tamamlanması)
-- çerez taşıma: Safari önce (keychain onay akışı), sonra Firefox; Chrome için
-  cookie-dosyası (Netscape formatı) yolu + README notu (Chrome 127+ kısıtı)
-- altyazı: `--write-subs --sub-langs tr,en` varsayılan; preset'te seçilebilir
-- playlist UX: grup başlıkları, "x/45 indirildi" göstergesi, sadece başarızları tekrar
-- doğrudan HTTP: referer/User-Agent değerleri, yönlendirmeleri destekleme
+## M5 — "Her şey"
+- çerez: Brave/Chrome (Keychain onayı), Firefox, Safari (Full Disk Access), cookies.txt içe aktarma
+- altyazı: `--write-subs --sub-langs tr,en`, preset'te seçilebilir
+- playlist UX: grup, "x/45 indi", yalnız başarısızları yeniden dene
+- HTTP: referer / User-Agent / özel başlıklar
 
-**Bitti kriteri:** üyelik gerektiren bir içerik, çerez taşıma ile iner; altyazılı
-bir video inip altyazı dosyası hedef klasörde görünür.
+**Bitti kriteri:** üyelik isteyen bir içerik Brave çereziyle iner; altyazı dosyası hedef klasörde.
+**Süre:** ~2 saat model işi (+ Doğukan'ın gerçek hesaplarla testi).
 
-## M6 — ffmpeg Postprocess
-- `brew install ffmpeg` — `scripts/install-deps.sh` içine eklenir
-- birleştirme (remux — transcode yok, hızlı ve kalite kayıpsız):
-  4K/best preset tek dosyaya toparlanır
-- audio preset tamamlanır: mp3/m4a çıkışı + metadata/kapak gömme
-- preset fallback zincirleri güncellenir ("ffmpeg'li dünya" hâline)
+## M6 — Ses çıkarma + gömme
+- audio preset: mp3/m4a, `--embed-thumbnail --embed-metadata`
+- video için `--embed-subs`, `--embed-chapters` seçenekleri
 
-**Bitti kriteri:** 4K video tek mkv/mp4 dosyası olarak iner; bir video mp3'e
-dönüşür ve id3 etiketleri doludur.
+**Bitti kriteri:** bir video mp3'e döner; kapak ve etiketler dolu.
+**Süre:** ~1 saat model işi.
 
-## M7 — Tarayıcı Uzantısı & Dağıtım
-- Safari Web Extension: sayfa bağlam menüsü "Kervan'a gönder" + toolbar butonu
-- `kervan://add?url=...` custom URL scheme (uzantı → uygulama köprüsü)
-- dağıtım: dmg + codesign + notarization; updater (örn. Sparkle) kararı
-- ilk kullanıcı dokümanı: kurulum, ilk indirme, çerez notları
+## M7 — Brave uzantısı + dağıtım
+- Brave/Chromium uzantısı (Manifest V3): sağ tık "Kervan'a gönder" + araç çubuğu düğmesi;
+  `kervan://add?url=` URL scheme ile app'e köprü (gerekirse native messaging)
+- sonra Safari Web Extension (opsiyonel)
+- araç dağıtımı kararı: Application Support'a indirme mi, gömme mi (lisans notlarıyla)
+- dmg + codesign + notarization; güncelleme (Sparkle) kararı
+- kullanıcı belgesi: kurulum, ilk indirme, çerez izinleri
 
-**Bitti kriteri:** Safari'de açık sayfadan tek tıkla Kervan kuyruğuna madde düşer;
-dağıtılan dmg başka bir Mac'te sorunsuz kurulup çalışır.
+**Bitti kriteri:** Brave'deki sayfadan tek tıkla kuyruğa öğe düşer; dmg Homebrew'suz
+başka bir Mac'te kurulup video indirir.
+**Süre:** ~3–4 saat model işi (+ Apple Developer hesabı/notarization için Doğukan'ın adımları).
 
 ---
 
-## Zaman resmi (tek geliştirici için kabaca)
-M1 · 1–2 hafta → M2 · 1 hafta → M3 · 1–1,5 hafta → M4 · 3–4 gün →
-M5 · 1 hafta → M6 · 2–3 gün → M7 · 1 hafta ≈ **toplam 6–8 hafta**.
-
-Kural: her aşama **çalışan bir araç** bırakır — hiçbir aşamada "yıllardır
-mekik dokuyorum ama çalışan bir şey yok" hâli yaşanmaz.
+## Toplam
+≈ **12–17 saat model işi**, aşama başına Doğukan'ın test turu ayrı. Tahminler kaba;
+yt-dlp/YouTube kırılmaları ve Apple imzalama adımları en büyük belirsizlik.
