@@ -1,7 +1,9 @@
 # Kervan
 
 > IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: M1 bitti (2026-10-23)** — `kervan get` CLI ile tek indirme çalışıyor. Kuyruk ve servis M2'de.
+> **Durum: M1.5 bitti (2026-10-23)** — `kervan get` CLI ile indirme çalışıyor: yt-dlp'nin desteklediği
+> siteler, giriş isteyen sitelerde Brave çerezi, çok videolu sayfalar, düz dosyalar (aria2).
+> Kuyruk/servis M2'de, sayfadaki videoyu yakalayan Brave eklentisi M3'te.
 
 ## Hızlı başlangıç
 
@@ -10,6 +12,8 @@ scripts/install-deps.sh          # yt-dlp, ffmpeg, aria2, deno
 swift run kervan doctor          # araçlar ve sürümler
 swift run kervan get <url>       # varsayılan: 1080p mp4 → ~/Downloads/Kervan
 swift run kervan get <url> -p best -d ~/Desktop
+swift run kervan get <sayfa> --all     # sayfadaki bütün videolar (--items 1,3)
+swift run kervan get <url> --cookies firefox   # varsayılan auto: giriş isterse Brave
 swift run kervan probe <url>     # türü ve metadata'yı göster, indirme
 swift run kervan presets
 swift test
@@ -134,19 +138,19 @@ Preset'ler veri olarak tutulur, kodda sabit değildir.
 
 ---
 
-## 4. "Her şey" kapsamı (M5)
+## 4. "Her şey" kapsamı
 
 1. **Binlerce site**: yt-dlp ekstraktörleri.
 2. **Tarayıcı çerezleri** (üyelere özel içerik): `--cookies-from-browser`.
-   - **Brave/Chrome (macOS)**: çerezler Keychain'deki anahtarla şifreli; yt-dlp
-     ilk seferde Keychain izni ister. Chrome 127'nin App-Bound şifrelemesi
-     **Windows'a özgü**, macOS'u etkilemiyor (M5'te tekrar doğrulanacak).
+   - **Brave/Chrome (macOS)**: çalışıyor (M1.5, 2026-10-23: Brave'den 1709 çerez okundu).
+     Chrome 127'nin App-Bound şifrelemesi Windows'a özgü.
    - **Firefox**: en kolay; şifresiz SQLite.
    - **Safari**: `Cookies.binarycookies` için **Full Disk Access** gerekir.
    - Yedek yol: Netscape formatında `cookies.txt` içe aktarma.
 3. **Altyazı**: `--write-subs --sub-langs tr,en`; preset'te seçilebilir.
 4. **Doğrudan HTTP**: aria2 çok bağlantılı indirme; referer/User-Agent/yönlendirme desteği.
-5. **(M7) Tarayıcı uzantısı**: önce **Brave/Chromium** (Manifest V3), sonra Safari.
+5. **(M3) Tarayıcı eklentisi**: Brave/Chromium (Manifest V3). Sayfanın ağ trafiğinden video/m3u8/mpd
+   akışlarını yakalar, IDM'in "Bu videoyu indir" düğmesinin karşılığı; Safari M7'de opsiyonel.
 
 ---
 
@@ -180,16 +184,21 @@ Kervan/
 
 ## 6. Yol haritası (özet; detay `docs/ROADMAP.md`)
 
+Öncelik: IDM gibi her videoyu yakalamak → çerez ve tarayıcı eklentisi uygulamadan önce.
+
 | Aşama | Ne | Bitti kriteri |
 |---|---|---|
-| **M0** | Plan + mimari | bu belge ✅ |
-| **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | `kervan get <url>` 1080p sesli YouTube videosunu tek mp4 olarak indirir; HTTP zip aria2 ile iner |
-| **M2** | `kervand` + kalıcı kuyruk | 5 öğelik kuyruk sürerken servis öldürülür; yeniden başlayınca kaldığı yerden devam eder |
-| **M3** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
-| **M4** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
-| **M5** | Çerez, altyazı, playlist UX | üyelik isteyen içerik Brave çereziyle iner |
-| **M6** | Ses çıkarma + gömme | mp3 + kapak + etiketler dolu |
-| **M7** | Brave uzantısı + dağıtım | Brave'den tek tıkla kuyruğa; dmg başka Mac'te çalışır |
+| **M0** ✅ | Plan + mimari | bu belge |
+| **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | 1080p YouTube tek mp4; HTTP zip aria2 ile |
+| **M1.5** ✅ | Brave çerezi + çok videolu sayfa | giriş isteyen sitede otomatik çerez; sayfadaki videolar `--all` ile |
+| **M2** | `kervand` + kalıcı kuyruk | servis öldürülüp açılınca kuyruk kaldığı yerden sürer |
+| **M3** | Brave eklentisi: ağdan video yakalama | yt-dlp'nin tanımadığı sayfadaki video tek tıkla iner |
+| **M4** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
+| **M5** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
+| **M6** | Altyazı, mp3, başlıklar, diğer tarayıcı çerezleri | gömülü altyazı; mp3 + kapak |
+| **M7** | Dağıtım | dmg Homebrew'suz başka Mac'te çalışır |
+
+Kapsam dışı: DRM'li servisler (Netflix, Disney+, Spotify…).
 
 Varsayılan indirme dizini: `~/Downloads/Kervan/`.
 

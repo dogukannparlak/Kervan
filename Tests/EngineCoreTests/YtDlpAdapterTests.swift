@@ -31,7 +31,19 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
         #expect(downloads.last?.fraction == 1)
         #expect(events.last?.phase == .postprocess)
         #expect(events.last?.message == "Merger")
-        #expect(tracker.outputFile?.path == "/tmp/Me at the zoo | 2005 [jNQXAC9IVRw].mp4")
+    }
+
+    @Test func fileLineCompletesWithPipeInName() {
+        var tracker = YtDlpProgressTracker()
+        #expect(tracker.consume(realDownloadLines.last!) == .completed(URL(filePath: "/tmp/Me at the zoo | 2005 [jNQXAC9IVRw].mp4")))
+    }
+
+    @Test func secondVideoResetsParts() {
+        var tracker = YtDlpProgressTracker()
+        realDownloadLines.forEach { _ = tracker.consume($0) }
+        _ = tracker.consume(OutputLine(.stdout, "KERVAN_INFO|18|1000"))
+        let event = tracker.consume(OutputLine(.stdout, "KERVAN_DL|downloading|100|1000|NA|NA|NA"))
+        #expect(event == .progress(ProgressEvent(phase: .download, bytesDone: 100, bytesTotal: 1000, message: "video 2")))
     }
 
     @Test func singleFileUsesExactTotal() {
@@ -72,6 +84,29 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
         #expect(args.suffix(2) == ["--", "https://example.com/v"])
         #expect(args.contains("--merge-output-format"))
         #expect(args.contains("--ffmpeg-location"))
+        #expect(args.contains("--no-playlist"))
+        #expect(!args.contains("--cookies-from-browser"))
+    }
+
+    @Test func cookiesAndPlaylistItemsReachArguments() {
+        let adapter = YtDlpAdapter(executable: fakeYtDlp, ffmpeg: nil, runner: MockRunner(lines: [], status: 0), environment: [:])
+        let args = adapter.downloadArguments(URL(string: "https://x/p")!, preset: preset1080, to: URL(filePath: "/tmp"),
+                                             cookiesFromBrowser: "brave", playlistItems: "1,3")
+        #expect(args.contains("--yes-playlist"))
+        #expect(!args.contains("--no-playlist"))
+        #expect(args.firstIndex(of: "--playlist-items").map { args[$0 + 1] } == "1,3")
+        #expect(args.firstIndex(of: "--cookies-from-browser").map { args[$0 + 1] } == "brave")
+    }
+
+    /// Mesajlar 2026-10-23'te yt-dlp 2026.08.19'dan alındı.
+    @Test(arguments: [
+        ("ERROR: [vimeo] 1: The web client only works when logged-in. Use --cookies, --cookies-from-browser", true),
+        ("ERROR: [Reddit] 1: Account authentication is required. Use --cookies-from-browser", true),
+        ("ERROR: [dailymotion] x: Not found.", false),
+    ])
+    func loginErrorDetection(message: String, expected: Bool) {
+        #expect(YtDlpAdapter.isLoginError(EngineError.toolFailed(.ytDlp, status: 1, message: message)) == expected)
+        #expect(!YtDlpAdapter.isLoginError(EngineError.toolFailed(.aria2c, status: 1, message: message)))
     }
 
     @Test func missingFFmpegRejectsVideoPreset() async {

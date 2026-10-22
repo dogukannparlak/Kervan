@@ -39,9 +39,10 @@ public struct YtDlpAdapter: Sendable {
         self.environment = environment
     }
 
-    public func probe(_ url: URL) async throws -> ProbeResult {
-        let process = try runner.start(executable, arguments: ["-J", "--flat-playlist", "--no-warnings", url.absoluteString],
-                                       environment: environment)
+    /// `cookiesFromBrowser`: yt-dlp `--cookies-from-browser` değeri (ör. "brave").
+    public func probe(_ url: URL, cookiesFromBrowser: String? = nil) async throws -> ProbeResult {
+        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser) + ["--", url.absoluteString]
+        let process = try runner.start(executable, arguments: args, environment: environment)
         let result = await process.collect()
         guard result.status == 0 else {
             throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
@@ -53,19 +54,26 @@ public struct YtDlpAdapter: Sendable {
         }
     }
 
-    public func download(_ url: URL, preset: Preset, to directory: URL) -> AsyncThrowingStream<DownloadEvent, Error> {
+    /// `playlistItems`: yt-dlp `--playlist-items` ifadesi ("1,3", "1:5"); nil ise yalnız tek video.
+    /// Her biten dosya için bir `.completed` olayı gelir.
+    public func download(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
+                         playlistItems: String? = nil) -> AsyncThrowingStream<DownloadEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     if preset.requiresFFmpeg && ffmpeg == nil { throw EngineError.ffmpegMissing }
-                    let process = try runner.start(executable, arguments: downloadArguments(url, preset: preset, to: directory),
-                                                   environment: environment)
+                    let args = downloadArguments(url, preset: preset, to: directory,
+                                                 cookiesFromBrowser: cookiesFromBrowser, playlistItems: playlistItems)
+                    let process = try runner.start(executable, arguments: args, environment: environment)
                     var tracker = YtDlpProgressTracker()
                     var stderr: [String] = []
+                    var completed = 0
                     await withTaskCancellationHandler {
                         for await line in process.output {
                             if line.source == .stderr { stderr.append(line.text) }
-                            continuation.yield(tracker.consume(line) ?? .log(line))
+                            let event = tracker.consume(line) ?? .log(line)
+                            if case .completed = event { completed += 1 }
+                            continuation.yield(event)
                         }
                     } onCancel: {
                         Task { await process.terminate() }
@@ -75,8 +83,7 @@ public struct YtDlpAdapter: Sendable {
                     guard status == 0 else {
                         throw EngineError.toolFailed(.ytDlp, status: status, message: Self.errorMessage(stderr))
                     }
-                    guard let file = tracker.outputFile else { throw EngineError.noOutputFile }
-                    continuation.yield(.completed(file))
+                    guard completed > 0 else { throw EngineError.noOutputFile }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -86,9 +93,11 @@ public struct YtDlpAdapter: Sendable {
         }
     }
 
-    func downloadArguments(_ url: URL, preset: Preset, to directory: URL) -> [String] {
+    func downloadArguments(_ url: URL, preset: Preset, to directory: URL, cookiesFromBrowser: String? = nil,
+                           playlistItems: String? = nil) -> [String] {
+        let playlist = playlistItems.map { ["--yes-playlist", "--playlist-items", $0] } ?? ["--no-playlist"]
         var args = [
-            "--newline", "--progress", "--color", "never", "--no-playlist",
+            "--newline", "--progress", "--color", "never",
             "--retries", "10", "--fragment-retries", "10",
             "-f", preset.format,
             "-P", directory.path,
@@ -100,23 +109,35 @@ public struct YtDlpAdapter: Sendable {
         ]
         if let ffmpeg { args += ["--ffmpeg-location", ffmpeg.path] }
         if let container = preset.container { args += ["--merge-output-format", container] }
-        return args + preset.extraArgs + ["--", url.absoluteString]
+        return args + playlist + Self.cookieArguments(cookiesFromBrowser) + preset.extraArgs + ["--", url.absoluteString]
+    }
+
+    static func cookieArguments(_ browser: String?) -> [String] {
+        browser.map { ["--cookies-from-browser", $0] } ?? []
     }
 
     static func errorMessage(_ stderr: [String]) -> String {
         stderr.last { $0.hasPrefix("ERROR:") } ?? stderr.last ?? "ayrıntı yok"
     }
+
+    /// Site giriş istiyor mu? (yt-dlp mesajları: "--cookies-from-browser", "logged-in", "authentication").
+    public static func isLoginError(_ error: Error) -> Bool {
+        guard case EngineError.toolFailed(.ytDlp, _, let message) = error else { return false }
+        let text = message.lowercased()
+        return ["cookies", "logged-in", "log in", "login", "authentication", "sign in"].contains { text.contains($0) }
+    }
 }
 
 /// yt-dlp'nin `KERVAN_*` satırlarını ilerleme olaylarına çevirir.
 /// Video + ses ayrı parçalar halinde iner; toplam, `KERVAN_INFO`'daki yaklaşık boyuttan gelir.
+/// Çok videolu indirmede her `KERVAN_INFO` yeni bir videoyu başlatır.
 struct YtDlpProgressTracker {
     static let infoPrefix = "KERVAN_INFO"
     static let downloadPrefix = "KERVAN_DL"
     static let postprocessPrefix = "KERVAN_PP"
     static let filePrefix = "KERVAN_FILE"
 
-    private(set) var outputFile: URL?
+    private var videos = 0
     private var parts = 1
     private var finishedParts = 0
     private var finishedBytes: Int64 = 0
@@ -126,7 +147,10 @@ struct YtDlpProgressTracker {
         let fields = line.text.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
         switch fields.first {
         case Self.infoPrefix where fields.count >= 3:
+            videos += 1
             parts = fields[1].split(separator: "+").count
+            finishedParts = 0
+            finishedBytes = 0
             approximateTotal = Int64(fields[2])
             return .progress(ProgressEvent(phase: .download, bytesTotalEstimate: approximateTotal, message: partMessage))
 
@@ -153,9 +177,7 @@ struct YtDlpProgressTracker {
             return .progress(ProgressEvent(phase: .postprocess, bytesDone: finishedBytes, message: fields[2]))
 
         case Self.filePrefix:
-            let path = line.text.dropFirst(Self.filePrefix.count + 1)
-            outputFile = URL(filePath: String(path))
-            return .log(line)
+            return .completed(URL(filePath: String(line.text.dropFirst(Self.filePrefix.count + 1))))
 
         default:
             return nil
@@ -163,6 +185,9 @@ struct YtDlpProgressTracker {
     }
 
     private var partMessage: String? {
-        parts > 1 ? "parça \(min(finishedParts + 1, parts))/\(parts)" : nil
+        var labels: [String] = []
+        if videos > 1 { labels.append("video \(videos)") }
+        if parts > 1 { labels.append("parça \(min(finishedParts + 1, parts))/\(parts)") }
+        return labels.isEmpty ? nil : labels.joined(separator: " · ")
     }
 }
