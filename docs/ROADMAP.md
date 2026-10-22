@@ -105,7 +105,7 @@ tam ekran; `reveal` canlı (Finder açacağı için).
 (tahminle aynı), ffprobe 720p; ilerlemede yüzde + kalan süre göründü. `kervan formats` YouTube'da
 2160p60…144p + ses. Swift 52 + eklenti 10 test.
 **Değişen karar:** UserNotifications macOS 27'de pakete izin vermedi (bkz. ARCHITECTURE 4c) →
-`osascript` bildirimi; tıklayınca dosya açma yok. Bildirimin ekranda göründüğü Doğukan'dan teyit bekliyor.
+`osascript` bildirimi; tıklayınca dosya açma yok. Doğukan bildirimin ekranda göründüğünü teyit etti (2026-10-23).
 
 ## M4 — SwiftUI app MVP
 - `app/` Xcode projesi, kök paketi yerel bağımlılık olarak kullanır; servise socket ile bağlanır
