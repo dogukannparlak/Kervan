@@ -51,7 +51,6 @@ async function add(request, button) {
   if (response.entries) return askSelection(request, response);
   const first = response.items?.[0];
   show(`✓ Kuyrukta: ${first?.title || request.url}`);
-  refreshQueue();
 }
 
 /** Çok videolu sayfa: hepsi ya da "1,3" gibi seçim. */
@@ -97,31 +96,71 @@ const ACTIONS = {
   canceled: [['retry', 'Yeniden'], ['remove', 'Sil', true]],
   done: [['reveal', 'Klasörde göster'], ['remove', 'Listeden sil']],
 };
+/** İnen öğeyi iptal etmek/silmek ikinci tıklamayla onaylanır (yarım iş kaybolmasın). */
+const NEEDS_CONFIRM = new Set(['downloading', 'postprocessing']);
+const CONFIRM_MS = 3000;
+const confirming = new Map(); // "id:komut" → bitiş zamanı
 
 async function control(cmd, id) {
   const response = await chrome.runtime.sendMessage({ type: 'control', cmd, ids: [id] });
   if (!response?.ok) show(response?.error || 'İşlem yapılamadı.', true);
-  refreshQueue();
 }
 
-async function refreshQueue() {
-  const response = await chrome.runtime.sendMessage({ type: 'list' });
+// --- Kuyruk: tek kalıcı köprü bağlantısı (connectNative). Önce abone olunur, sonra liste gelir;
+// sonrası yalnız değişiklik olayları. Popup kapanınca bağlantı ve köprü süreci kapanır.
+
+const HOST = 'com.dogukan.kervan';
+const queue = new Map();
+let queueError = null;
+let renderScheduled = false;
+
+function connectQueue() {
+  const port = chrome.runtime.connectNative(HOST);
+  port.onMessage.addListener((message) => {
+    if (!message?.ok) {
+      queueError = message?.error || 'Kuyruk okunamadı.';
+    } else {
+      queueError = null;
+      if (!message.event && message.items) queue.clear(); // tam liste
+      for (const item of message.items || []) {
+        const known = queue.get(item.id);
+        // Liste yanıtından önce üretilmiş, geç gelen eski olay yeni durumu ezmesin.
+        if (message.event && known && item.updatedAt < known.updatedAt) continue;
+        queue.set(item.id, item);
+      }
+      for (const id of message.removed || []) queue.delete(id);
+    }
+    scheduleRender();
+  });
+  port.onDisconnect.addListener(() => {
+    const reason = chrome.runtime.lastError?.message || 'bağlantı kapandı';
+    queueError = `Kervan köprüsü yok (${reason}). Terminalde: kervan extension install`;
+    scheduleRender();
+  });
+  port.postMessage({ cmd: 'subscribe' });
+  port.postMessage({ cmd: 'list' });
+}
+
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    renderQueue();
+  });
+}
+
+function renderQueue() {
   const list = $('queue');
-  if (!response?.ok) {
+  const note = (text) => {
     const item = document.createElement('li');
     item.className = 'meta';
-    item.textContent = response?.error || 'Kuyruk okunamadı.';
+    item.textContent = text;
     list.replaceChildren(item);
-    return;
-  }
-  const items = (response.items || []).filter((i) => i.kind !== 'group').slice(-8).reverse();
-  if (!items.length) {
-    const item = document.createElement('li');
-    item.className = 'meta';
-    item.textContent = 'Kuyruk boş.';
-    list.replaceChildren(item);
-    return;
-  }
+  };
+  if (queueError) return note(queueError);
+  const items = [...queue.values()].filter((i) => i.kind !== 'group').sort((a, b) => b.id - a.id).slice(0, 8);
+  if (!items.length) return note('Kuyruk boş.');
   list.replaceChildren(...items.map(queueRow));
 }
 
@@ -148,6 +187,8 @@ function queueRow(entry) {
   if (entry.state !== 'done' && entry.state !== 'canceled') {
     const bar = document.createElement('div');
     bar.className = 'bar';
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     const fill = document.createElement('div');
     fill.style.width = `${Math.round(fraction * 100)}%`;
     bar.append(fill);
@@ -156,10 +197,20 @@ function queueRow(entry) {
   const actions = document.createElement('div');
   actions.className = 'actions';
   for (const [cmd, label, danger] of ACTIONS[entry.state] || []) {
+    const key = `${entry.id}:${cmd}`;
+    const pending = (confirming.get(key) || 0) > Date.now();
     const button = document.createElement('button');
-    button.textContent = label;
-    if (danger) button.className = 'danger';
-    button.addEventListener('click', () => control(cmd, entry.id));
+    button.textContent = pending ? 'Emin misin?' : label;
+    if (danger) button.className = pending ? 'danger confirm' : 'danger';
+    button.addEventListener('click', () => {
+      if (danger && NEEDS_CONFIRM.has(entry.state) && (confirming.get(key) || 0) <= Date.now()) {
+        confirming.set(key, Date.now() + CONFIRM_MS);
+        setTimeout(scheduleRender, CONFIRM_MS + 50);
+        return scheduleRender();
+      }
+      confirming.delete(key);
+      control(cmd, entry.id);
+    });
     actions.append(button);
   }
   item.append(info, actions);
@@ -171,5 +222,4 @@ const { overlay = true } = await chrome.storage.local.get('overlay');
 $('overlay').checked = overlay;
 $('overlay').addEventListener('change', (e) => chrome.storage.local.set({ overlay: e.target.checked }));
 
-refreshQueue();
-setInterval(refreshQueue, 1500);
+connectQueue();

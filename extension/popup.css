@@ -64,6 +64,7 @@ li .meta { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: 
 .actions { display: flex; gap: 4px; flex-shrink: 0; }
 .actions button { padding: 2px 7px; font-size: 11px; }
 .actions button.danger:hover { border-color: var(--error); color: var(--error); }
+.actions button.danger.confirm { border-color: var(--error); color: #fff; background: var(--error); }
 .bar { height: 3px; border-radius: 2px; background: var(--line); margin-top: 4px; overflow: hidden; }
 .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
 .state-failed .meta { color: var(--error); }
