@@ -5,6 +5,8 @@
 
 ## 0. Önce: menü çubuğu simgesinin görünmesi
 
+> Mac'te doğrulama listesi (bu madde dahil): [`docs/MAC_KONTROL.md`](MAC_KONTROL.md).
+
 - [ ] Doğukan'ın Mac'inde simge görünmüyor. Öğe var (Accessibility'de "status menu"), ama Thaw ya da
   çentik gizliyor olabilir. 5. madde Dock'u kaldıracağı için menü çubuğu tek giriş olacak; önce bu çözülmeli.
   - Kontrol: `osascript -e 'tell application "System Events" to tell process "KervanApp" to get description of every menu bar item of menu bar 2'`
