@@ -14,6 +14,8 @@
     ekran dışında. `showInMenuBar = 1` doğru, `Thaw` çalışıyor (pid 909). Yani sorun uygulamada değil:
     Thaw simgeyi gizli bölgeye almış. Çözüm Thaw ayarında (Kervan'ı "her zaman görünür" yap ya da gizli
     bölgeyi aç); kodda yapılacak bir şey yok.
+  - **Teyit (2026-10-26 22:2x):** Thaw kapatılınca Kervan simgesi (ve Apple Sports) geliyor; Thaw açıkken öğe `-1, 944`'e
+    park ediliyor, kayıtlı düzende "visible" olsa bile. Çözüm: Thaw → Menu Bar Layout'ta Kervan'ı Shown'a sürükle.
 
 ## Sonraki tur (1–5)
 

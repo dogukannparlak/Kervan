@@ -44,7 +44,8 @@ struct KervanApp: App {
                 .environment(store)
                 .task { start() }
         } label: {
-            MenuBarLabel(active: store.active.count)
+            MenuBarLabel()
+                .environment(store)
                 .task { start() }
         }
         .menuBarExtraStyle(.window)
@@ -65,15 +66,14 @@ struct KervanApp: App {
 
 struct MenuBarLabel: View {
     @Environment(\.openWindow) private var openWindow
-    let active: Int
+    // Sayı bu görünümün kendi gövdesinde okunur; App gövdesinde okununca etiket yenilenmiyordu.
+    @Environment(QueueStore.self) private var store
 
     var body: some View {
-        Group {
-            if active > 0 {
-                Label("\(active)", systemImage: "arrow.down.circle.fill").labelStyle(.titleAndIcon)
-            } else {
-                Image(systemName: "arrow.down.circle")
-            }
+        let active = store.active.count
+        HStack(spacing: 2) {
+            Image(systemName: active > 0 ? "arrow.down.circle.fill" : "arrow.down.circle")
+            if active > 0 { Text("\(active)") }
         }
         // Pencere kapatılmış olsa da yeniden açabilen yol (menü çubuğu simgesi gizliyse pencere görünümünden alınır).
         .onAppear { MainWindow.remember(openWindow) }
