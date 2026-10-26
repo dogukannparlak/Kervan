@@ -10,6 +10,10 @@
 - [ ] Doğukan'ın Mac'inde simge görünmüyor. Öğe var (Accessibility'de "status menu"), ama Thaw ya da
   çentik gizliyor olabilir. 5. madde Dock'u kaldıracağı için menü çubuğu tek giriş olacak; önce bu çözülmeli.
   - Kontrol: `osascript -e 'tell application "System Events" to tell process "KervanApp" to get description of every menu bar item of menu bar 2'`
+  - **Teşhis (2026-10-26, Mac'te):** öğe var (`status menu`), konumu `-1, 944`; ekran 1470×923 olduğundan
+    ekran dışında. `showInMenuBar = 1` doğru, `Thaw` çalışıyor (pid 909). Yani sorun uygulamada değil:
+    Thaw simgeyi gizli bölgeye almış. Çözüm Thaw ayarında (Kervan'ı "her zaman görünür" yap ya da gizli
+    bölgeyi aç); kodda yapılacak bir şey yok.
 
 ## Sonraki tur (1–5)
 
