@@ -46,6 +46,7 @@ async function add(request, button) {
   show('Ekleniyor…');
   const response = await chrome.runtime.sendMessage({ type: 'add', request });
   button.disabled = false;
+  if (!response?.ok && response?.loginRequired && request.cookies !== 'fallback') return askCookies(request);
   if (!response?.ok) return show(response?.error || 'bilinmeyen hata', true);
   if (response.entries) return askSelection(request, response);
   const first = response.items?.[0];
@@ -70,6 +71,15 @@ function askSelection(request, response) {
   some.addEventListener('click', () => input.value && add({ ...request, items: input.value }, some));
   row.append(input, some);
   box.append(all, row);
+}
+
+/** Site giriş istedi: kullanıcı onaylarsa tarayıcı çerezleriyle yeniden dene. */
+function askCookies(request) {
+  show('Site giriş istiyor. Tarayıcıda bu siteye giriş yaptıysan: ', true);
+  const retry = document.createElement('button');
+  retry.textContent = 'Tarayıcı çerezleriyle dene';
+  retry.addEventListener('click', () => add({ ...request, cookies: 'fallback' }, retry));
+  $('result').append(retry);
 }
 
 function show(text, isError = false) {

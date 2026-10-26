@@ -69,6 +69,8 @@ public struct Request: Codable, Sendable {
     /// Altyazı gömülsün mü; nil ise ayardaki değer.
     public var subtitles: Bool?
     public var settings: KervanSettings?
+    /// Native host koyar: istek bir web sayfası bağlamından geldi (yerel ağ adresleri reddedilir).
+    public var fromExtension: Bool?
 
     public init(cmd: Command, url: String? = nil, preset: String? = nil, dir: String? = nil, cookies: String? = nil,
                 items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil, referer: String? = nil,
@@ -104,6 +106,8 @@ public struct Response: Codable, Sendable {
     public var qualities: QualityList?
     public var settings: KervanSettings?
     public var update: UpdateState?
+    /// Site giriş istedi; istemci kullanıcıya "tarayıcı çerezleriyle dene" sunabilir (`cookies: "fallback"`).
+    public var loginRequired: Bool?
 
     public init(ok: Bool, error: String? = nil, event: Bool? = nil, version: String? = nil, items: [DownloadItem]? = nil,
                 removed: [Int64]? = nil, title: String? = nil, entries: [ProbeResult.Entry]? = nil,

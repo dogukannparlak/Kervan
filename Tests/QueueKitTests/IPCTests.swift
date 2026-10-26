@@ -31,6 +31,14 @@ import Testing
         let bad = try client.request(Request(cmd: .pause, ids: [999]))
         #expect(!bad.ok && bad.error == "#999 bulunamadı.")
 
+        // Eklentiden gelen istek yerel ağa ulaşamaz; aynı link CLI/uygulamadan eklenebilir.
+        var fromPage = Request(cmd: .add, url: "http://192.168.1.10/ok", dir: "/tmp/kervan-test", cookies: "none")
+        fromPage.fromExtension = true
+        let blocked = try client.request(fromPage)
+        #expect(!blocked.ok && blocked.error?.contains("Yerel ağ") == true)
+        fromPage.fromExtension = nil
+        #expect(try client.request(fromPage).ok)
+
         let badURL = try client.request(Request(cmd: .add, url: "ftp://x"))
         #expect(!badURL.ok)
 

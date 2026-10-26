@@ -105,7 +105,7 @@ export function addMedia(state, media, now = Date.now()) {
 
 /** Ana listeye bağlı alt listeleri gizler (kullanıcı tek "HLS akışı" görür). */
 export function hideVariants(state, variants) {
-  state.hidden = [...new Set([...(state.hidden || []), ...variants])];
+  state.hidden = [...new Set([...(state.hidden || []), ...variants])].slice(-200);
 }
 
 export function visibleMedia(state) {

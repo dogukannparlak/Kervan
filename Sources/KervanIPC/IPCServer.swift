@@ -78,9 +78,7 @@ public final class IPCServer: Sendable {
             case .ping:
                 return Response(ok: true, version: kervanVersion, items: [])
             case .add:
-                guard let text = request.url, let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-                    throw QueueError.invalidURL(request.url ?? "")
-                }
+                let url = try webURL(request)
                 // Klasör verilmediyse ayardaki indirme klasörü (+ açıksa tür klasörü).
                 let current = settings.value
                 let context = RequestContext(referer: request.referer, userAgent: request.userAgent, filename: request.title)
@@ -118,9 +116,7 @@ public final class IPCServer: Sendable {
                 try process.run()
                 return Response(ok: true, items: [item])
             case .formats:
-                guard let text = request.url, let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-                    throw QueueError.invalidURL(request.url ?? "")
-                }
+                let url = try webURL(request)
                 let context = RequestContext(referer: request.referer, userAgent: request.userAgent)
                 let list = try await engine.qualities(url: url, cookies: CookiePolicy(request.cookies ?? "auto"), context: context)
                 return Response(ok: true, qualities: list)
@@ -138,8 +134,25 @@ public final class IPCServer: Sendable {
                 return .failure("subscribe burada işlenmez.")
             }
         } catch {
-            return .failure(String(describing: error))
+            var response = Response.failure(String(describing: error))
+            if Self.needsLogin(error) { response.loginRequired = true }
+            return response
         }
+    }
+
+    /// İstekteki http(s) linki. Eklentiden geldiyse yerel ağ adresi reddedilir: web sayfası kullanıcının
+    /// ağındaki cihazlara (modem, NAS, localhost) Kervan üzerinden istek yaptıramasın.
+    func webURL(_ request: Request) throws -> URL {
+        guard let text = request.url, let url = URL(string: text), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            throw QueueError.invalidURL(request.url ?? "")
+        }
+        if request.fromExtension == true && LocalNetwork.isLocal(url) { throw QueueError.localAddress(text) }
+        return url
+    }
+
+    static func needsLogin(_ error: Error) -> Bool {
+        if case EngineError.loginRequired = error { return true }
+        return YtDlpAdapter.isLoginError(error)
     }
 }
 

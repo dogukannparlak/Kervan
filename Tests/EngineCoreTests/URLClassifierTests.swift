@@ -64,3 +64,33 @@ private func probeResult(type: String? = nil, direct: Bool? = nil) throws -> Pro
         await #expect(throws: EngineError.self) { try await classifier.classify(URL(string: "https://x/page")!) }
     }
 }
+
+@Suite struct LocalNetworkTests {
+    @Test(arguments: [
+        "http://localhost:8080/a", "http://127.0.0.1/", "http://127.1/", "http://0x7f.0.0.1/", "http://2130706433/",
+        "http://10.0.0.5/x.mp4", "http://172.20.1.1/", "http://192.168.1.10/", "http://169.254.169.254/latest",
+        "http://0.0.0.0/", "http://[::1]/", "http://[fd12::1]/", "http://[fe80::1]/", "http://[::ffff:192.168.1.1]/",
+        "http://nas/", "http://nas.local/", "http://router.lan/", "http://foo.localhost/",
+    ])
+    func local(_ link: String) {
+        #expect(LocalNetwork.isLocal(URL(string: link)!))
+    }
+
+    @Test(arguments: [
+        "https://youtube.com/watch?v=1", "https://8.8.8.8/", "http://172.32.0.1/", "http://192.169.0.1/",
+        "https://[2001:db8::1]/", "https://cdn.example.com/a.mp4",
+    ])
+    func remote(_ link: String) {
+        #expect(!LocalNetwork.isLocal(URL(string: link)!))
+    }
+}
+
+@Suite struct CookiePolicyTests {
+    @Test func values() {
+        #expect(CookiePolicy("auto", environment: [:]) == CookiePolicy(explicit: nil, fallback: "brave"))
+        #expect(CookiePolicy("none", environment: [:]) == CookiePolicy(explicit: nil, fallback: nil))
+        // Eklentide kullanıcı "tarayıcı çerezleriyle dene" dediğinde.
+        #expect(CookiePolicy("fallback", environment: ["KERVAN_COOKIES_BROWSER": "firefox"]) == CookiePolicy(explicit: "firefox", fallback: nil))
+        #expect(CookiePolicy("Chrome", environment: [:]) == CookiePolicy(explicit: "chrome", fallback: nil))
+    }
+}

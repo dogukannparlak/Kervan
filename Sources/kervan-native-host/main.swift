@@ -5,6 +5,8 @@ import KervanIPC
 // stdin'den 4 bayt uzunluk (yerel bayt sırası) + JSON okur, aynı biçimde yanıt yazar.
 // İstekler kervand soketine iletilir. Köprüyü yalnız manifest'teki eklenti kimliği çağırabilir
 // (`allowed_origins`); akış isteyen `subscribe` dışındaki komutlar açıktır.
+// Eklenti web sayfası bağlamında çalıştığı için istekler daraltılır: klasör ve ayar verilemez, çerez yalnız
+// kullanıcının açık onayıyla ("fallback"), yerel ağ adresleri servis tarafında reddedilir (`fromExtension`).
 
 let allowed: Set<Request.Command> = [.ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal, .formats, .settings]
 let input = FileHandle.standardInput
@@ -35,7 +37,7 @@ func write(_ response: Response) {
 }
 
 while let message = readMessage() {
-    guard let request = try? JSONDecoder().decode(Request.self, from: message) else {
+    guard var request = try? JSONDecoder().decode(Request.self, from: message) else {
         write(.failure("Geçersiz istek."))
         continue
     }
@@ -43,6 +45,10 @@ while let message = readMessage() {
         write(.failure("Eklentiden bu komut kullanılamaz: \(request.cmd.rawValue)"))
         continue
     }
+    request.fromExtension = true
+    request.dir = nil
+    request.settings = nil
+    request.cookies = request.cookies == "fallback" ? "fallback" : "none"
     do {
         write(try IPCClient().request(request))
     } catch {

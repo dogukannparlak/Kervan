@@ -190,8 +190,12 @@
       if (!reply?.ok) {
         const line = document.createElement('div');
         line.className = 'status error';
-        line.textContent = reply?.error || 'Kalite bilgisi alınamadı.';
+        line.textContent = reply?.loginRequired ? 'Site giriş istiyor.' : reply?.error || 'Kalite bilgisi alınamadı.';
         menu.append(line);
+      }
+      if (reply?.loginRequired && request.cookies !== 'fallback') {
+        option(menu, 'Tarayıcı çerezleriyle dene', 'Bu siteye tarayıcında giriş yaptıysan',
+          () => showQualities(menu, { ...request, cookies: 'fallback' }));
       }
       option(menu, 'Varsayılan kaliteyle indir', '', () => send(menu, request));
     }
@@ -201,6 +205,13 @@
   async function send(menu, request) {
     status(menu, 'Kuyruğa ekleniyor…');
     const response = await chrome.runtime.sendMessage({ type: 'add', request });
+    if (!response?.ok && response?.loginRequired && request.cookies !== 'fallback') {
+      status(menu, 'Site giriş istiyor.', true);
+      option(menu, 'Tarayıcı çerezleriyle dene', 'Bu siteye tarayıcında giriş yaptıysan',
+        () => send(menu, { ...request, cookies: 'fallback' }));
+      positionMenu();
+      return;
+    }
     if (!response?.ok) return status(menu, response?.error || 'Eklenemedi.', true);
     if (response.entries) {
       status(menu, `Bu sayfada ${response.entries.length} video var.`);

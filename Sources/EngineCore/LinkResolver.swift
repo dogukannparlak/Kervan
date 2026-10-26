@@ -1,7 +1,8 @@
 import Foundation
 
 /// `--cookies` değeri: "auto" → önce çerezsiz, site giriş isterse yedek tarayıcı;
-/// "none" → hiç; başka bir değer → doğrudan o tarayıcı.
+/// "none" → hiç; "fallback" → doğrudan yedek tarayıcı (eklentide kullanıcı onayladıysa);
+/// başka bir değer → doğrudan o tarayıcı.
 public struct CookiePolicy: Sendable, Equatable, Codable {
     public let explicit: String?
     public let fallback: String?
@@ -15,6 +16,7 @@ public struct CookiePolicy: Sendable, Equatable, Codable {
         switch value.lowercased() {
         case "auto": self.init(explicit: nil, fallback: environment["KERVAN_COOKIES_BROWSER"] ?? "brave")
         case "none": self.init(explicit: nil, fallback: nil)
+        case "fallback": self.init(explicit: environment["KERVAN_COOKIES_BROWSER"] ?? "brave", fallback: nil)
         default: self.init(explicit: value.lowercased(), fallback: nil)
         }
     }
