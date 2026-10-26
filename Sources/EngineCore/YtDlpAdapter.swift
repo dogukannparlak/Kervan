@@ -65,8 +65,10 @@ public struct YtDlpAdapter: Sendable {
     }
 
     /// `yt-dlp -J --flat-playlist` çıktısı; aynı (link, çerez, başlık) için 5 dakika önbellekten gelir.
-    func probeJSON(_ url: URL, cookiesFromBrowser: String?, context: RequestContext) async throws -> Data {
-        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser)
+    /// `singleVideo`: link bir listeye de işaret etse (`&list=…`, karışık liste) yalnız o videoyu çıkarır.
+    func probeJSON(_ url: URL, cookiesFromBrowser: String?, context: RequestContext, singleVideo: Bool = false) async throws -> Data {
+        let args = ["-J", "--flat-playlist", "--no-warnings"] + (singleVideo ? ["--no-playlist"] : [])
+            + Self.cookieArguments(cookiesFromBrowser)
             + Self.headerArguments(context) + ["--", url.absoluteString]
         let key = args.joined(separator: "\u{1F}")
         return try await probeCache.value(for: key) {

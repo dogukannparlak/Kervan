@@ -51,6 +51,17 @@ import Testing
         #expect(runner.recorder.count == 1)
     }
 
+    @Test func qualitiesOfWatchPageWithListParameterAskForSingleVideo() async throws {
+        let url = try #require(Bundle.module.url(forResource: "bbb-formats", withExtension: "json", subdirectory: "Fixtures"))
+        let json = try String(contentsOf: url, encoding: .utf8)
+        let runner = MockRunner(lines: [OutputLine(.stdout, json)], status: 0)
+        let adapter = YtDlpAdapter(executable: URL(filePath: "/bin/yt-dlp"), ffmpeg: nil, runner: runner, environment: [:])
+        _ = try await adapter.qualities(URL(string: "https://www.youtube.com/watch?v=aqz-KE-bpKQ&list=RDaqz-KE-bpKQ")!)
+        #expect(runner.recorder.last?.contains("--no-playlist") == true)
+        _ = try await adapter.qualities(URL(string: "https://www.youtube.com/watch?v=aqz-KE-bpKQ")!)
+        #expect(runner.recorder.last?.contains("--no-playlist") == false)
+    }
+
     @Test func failedExtractionIsNotCached() async throws {
         let runner = MockRunner(lines: [OutputLine(.stderr, "ERROR: boom")], status: 1)
         let adapter = YtDlpAdapter(executable: URL(filePath: "/bin/yt-dlp"), ffmpeg: nil, runner: runner, environment: [:])
