@@ -93,11 +93,17 @@ final class QueueStore {
         if !response.ok { message = response.error }
     }
 
-    /// Sürükle-bırak: her http(s) linki varsayılan ayarlarla eklenir; çok videolu sayfa ekleme sayfasında açılır.
+    /// Sürükle-bırak: tek link hemen inmez, ekleme sayfasında (kalite, klasör…) açılır; birden çok link toplu bırakıldıysa
+    /// varsayılan ayarlarla eklenir. Çok videolu sayfa her durumda ekleme sayfasında açılır.
     func addDropped(_ urls: [URL]) {
         let links = urls.filter { ["http", "https"].contains($0.scheme?.lowercased() ?? "") }
         guard !links.isEmpty else {
             message = "Bırakılan şey bir web linki değil."
+            return
+        }
+        if links.count == 1 {
+            pendingAdd = links[0].absoluteString
+            MainWindow.show()
             return
         }
         Task {
