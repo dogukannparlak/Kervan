@@ -310,7 +310,7 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         await engine.start()
         let outcome = try await engine.add(url: URL(string: "https://a.com/partial")!, options: AddOptions(
             destination: directory.path, cookies: CookiePolicy("none")))
-        guard case .added(let items, _) = outcome, let id = items.first?.id else { return Issue.record("eklenmedi") }
+        guard case .added(let items, _) = outcome, let id = items.first?.id else { Issue.record("eklenmedi"); return }
         let part = directory.appending(path: "Video [p1].mp4.part")
         #expect(await eventually { await engine.item(id)?.partialPath != nil })
         #expect(FileManager.default.fileExists(atPath: part.path))
@@ -331,7 +331,7 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         var options = AddOptions(destination: "/tmp/kervan-test", cookies: CookiePolicy("none"))
         options.force = true
         guard case .added(let again, _) = try await engine.add(url: URL(string: "https://a.com/ok")!, options: options),
-              let second = again.first?.id else { return Issue.record("eklenmedi") }
+              let second = again.first?.id else { Issue.record("eklenmedi"); return }
         #expect(await eventually { await engine.item(second)?.state == .done })
 
         let waiting = try await addURL(engine, "https://a.com/hang")[0].id!
@@ -345,7 +345,7 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         var options = AddOptions(destination: "/tmp/kervan-test", cookies: CookiePolicy("none"))
         options.sizeHint = 268_000_000
         guard case .added(let items, _) = try await engine.add(url: URL(string: "https://a.com/ok")!, options: options) else {
-            return Issue.record("eklenmedi")
+            Issue.record("eklenmedi"); return
         }
         #expect(items.first?.state == .queued)
         #expect(items.first?.bytesTotalEstimate == 268_000_000)
