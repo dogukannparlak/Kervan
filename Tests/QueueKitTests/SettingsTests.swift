@@ -93,6 +93,14 @@ import Testing
         let sums = "ab12  yt-dlp\nCD34  yt-dlp_macos\nef56  yt-dlp_macos.zip\n"
         #expect(ToolUpdater.checksum(for: "yt-dlp_macos", in: sums) == "cd34")
         #expect(ToolUpdater.checksum(for: "yok", in: sums) == nil)
+
+        // Gerçek gpg çıktısı (2026-10-21 sürümü); başka anahtarın imzası kabul edilmez.
+        let good = ["[GNUPG:] GOODSIG 57CF65933B5A7581 Simon Sawicki (yt-dlp signing key) <contact@grub4k.xyz>",
+                    "[GNUPG:] VALIDSIG AC0CBBE6848D6A873464AF4E57CF65933B5A7581 2026-10-21 1792619636 0 4 0 1 10 00 AC0CBBE6848D6A873464AF4E57CF65933B5A7581"]
+        #expect(ToolUpdater.isSigned(by: ToolUpdater.signingKey, status: good))
+        #expect(!ToolUpdater.isSigned(by: ToolUpdater.signingKey, status: ["[GNUPG:] VALIDSIG 0000 2026-10-21 1 0 4 0 1 10 00 0000"]))
+        #expect(!ToolUpdater.isSigned(by: ToolUpdater.signingKey, status: ["[GNUPG:] BADSIG 57CF65933B5A7581 x"]))
+        #expect(PresetStore.resources.url(forResource: "yt-dlp-public", withExtension: "key") != nil)
     }
 }
 

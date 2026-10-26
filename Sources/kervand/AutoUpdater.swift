@@ -46,6 +46,9 @@ final class AutoUpdater: Sendable {
             state.lastResult = result.changed
                 ? "yt-dlp \(result.before ?? "?") → \(result.after ?? "?")"
                 : "yt-dlp güncel (\(result.after ?? "?"))"
+            if result.changed && !result.signatureChecked {
+                state.lastResult? += " (gpg yok: imza denetlenmedi, SHA-256 denetlendi; brew install gnupg)"
+            }
             log("güncelleme: \(state.lastResult ?? "")")
             if result.changed { Notifier.show(("Kervan: yt-dlp güncellendi", state.lastResult ?? "")) }
         } catch {

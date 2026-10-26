@@ -19,7 +19,7 @@ let package = Package(
     targets: [
         .target(
             name: "EngineCore",
-            resources: [.copy("Resources/presets")]
+            resources: [.copy("Resources/presets"), .copy("Resources/yt-dlp-public.key")]
         ),
         .target(
             name: "QueueKit",
