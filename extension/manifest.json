@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kervan",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Sayfadaki videoyu yakalar ve Kervan indirme kuyruğuna gönderir.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzywuI3hvCQkBGjrm63kysMmfT8wWLZZWydZZaxlDcHwP9xeGoAmm4RqD+B20PskDxtvY1yAqlIZFqUJyBXg5PLZdXxpDLsnaUiGBS8NFXIeifQ/aVHeAH2Zd6S4aN09JS12AIhdOGCqZA0uvFfPk+GSVRCBSNnLo4A42PbEnj1sYdnzxM0n/hAz19gLfuKJDalicSd+YCKdBr7SGsQmfn/SFziikbMz8XCZiL0T7QAUkO/OmOhXf3fXtg7iHlflNnZyw9X+dxB+OJCI/nbamfXdY8twQme59EeUzu5R95gjXBJgDnaUgC4+1Ivwlm/glWCG8ikB1cJ1BGlpUBPQxwwIDAQAB",
   "minimum_chrome_version": "116",

@@ -26,7 +26,8 @@ kervan formats <url>                   # kalite seçenekleri ve yaklaşık boyut
 kervan reveal 3                        # bitmiş dosyayı Finder'da göster
 kervan get <url>                       # servissiz, ön planda tek indirme
 kervan doctor                          # araçlar + servis + güncelleme durumu
-kervan update                          # yt-dlp'yi şimdi güncelle (servis günde bir kez kendisi yapar)
+kervan update                          # yt-dlp'yi şimdi güncelle (servis günde bir kez kendisi yapar;
+                                       #   gpg kuruluysa yt-dlp imzası da doğrulanır: brew install gnupg)
 kervan config [ad] [değer]             # ayarlar: maxParallel, categorize, subtitles, defaultPreset…
 kervan service status | uninstall
 ```
@@ -59,7 +60,14 @@ Kullanım:
   medya için **İndir**, kuyrukta **Durdur / Devam / İptal / Yeniden / Sil / Klasörde göster**.
 - Sağ tık → "Kervan ile indir": bağlantı, video ve sayfa için.
 - İndirme bitince ya da hata verince **macOS bildirimi** gelir (playlist'te liste bitince bir kez).
-Eklenti testleri: `node --test extension/test/`.
+- Eklentiden gelen isteklerde tarayıcı çerezi **kendiliğinden kullanılmaz**: site giriş isterse
+  "Tarayıcı çerezleriyle dene" düğmesi çıkar. Yerel ağ adresleri (localhost, 192.168.x, `.local`…)
+  eklentiden indirilemez; bunları uygulamadan ya da `kervan add` ile ekle.
+- İnen öğeyi iptal etmek/silmek onay ister (popup'ta ikinci tıklama, uygulamada onay penceresi).
+
+İnen dosyalara tarayıcıların yaptığı gibi macOS karantina etiketi konur (indirilen .app/.pkg Gatekeeper'dan geçer).
+
+Eklenti testleri: `node --test extension/test/*.test.mjs`.
 
 ---
 

@@ -34,7 +34,8 @@
     olarak yazılsın; böylece öğe "sırada" iken de boyut görünür. İnerken yüzde zaten var; yüzde olmayan
     durumları (mp3 dönüşümü, boyutu bilinmeyen HLS) gözden geçir.
 
-- [ ] **4. Türkçe hata mesajları + öneri**
+- [x] **4. Türkçe hata mesajları + öneri** — `QueueKit/ErrorText.swift` (testli); ham hata log'da ve
+  yanıtın `detail` alanında, CLI "ayrıntı:" satırında gösterir.
   - yt-dlp/aria2 ham hatalarını (`ERROR: Video unavailable`, `HTTP Error 403`, `Sign in to confirm…`)
     Türkçe ve önerili metne çeviren bir eşleme: `QueueKit/ErrorText.swift` (testli).
   - Örnekler: "Video kaldırılmış ya da gizli", "Site giriş istiyor: Brave'de giriş yap",
@@ -48,6 +49,16 @@
   - Açık deneme: bildirimi servis yerine uygulama UserNotifications ile gönderirse macOS izin veriyor mu?
     (servis paketinde vermedi, bkz. ARCHITECTURE 4c). İzin verirse bildirime tıklayınca dosya açılır.
 
+## İnceleme turu (2026-10-26, `fix/inceleme-duzeltmeleri`)
+
+Yapıldı: servis çökmeleri (negatif `log -n`, boş/dev playlist seçimi); eklentide gönderen kontrolü,
+çerez yalnız onayla, eklentiden yerel ağ engeli; soket 0600/klasör 0700/satır sınırı; yt-dlp güncellemesinde
+gpg imza doğrulaması; karantina etiketi; abonelik sırası, yarım `apply`, dosya adı çakışması, yetim ffmpeg,
+ayar klasörü denetimi; Türkçe hatalar; popup kalıcı bağlantı; inen öğeyi iptal onayı; içerik betiği yükü.
+
+Açık kalan: yerel ağ engeli ad çözümlemez (DNS ile yerel IP'ye çözülen alan adı ve yönlendirmeler geçer);
+playlist çocuklarının linkleri yerel ağ için ayrıca denetlenmiyor.
+
 ## Daha sonra
 
 - [ ] Hız sınırı ve zamanlayıcı (aria2 canlı, yt-dlp `--limit-rate` + `.part`'tan yeniden başlatma; `pmset sleepnow`)
@@ -55,7 +66,7 @@
 - [ ] Pano izlemede "bu siteyi önerme" listesi
 - [ ] Tarayıcı indirmelerini yakalama (eklentiye `downloads` izni)
 - [ ] Video indirmede paralel parça (`-N 4`), etkisi ölçülerek
-- [ ] İnen dosyalara macOS karantina etiketi (Gatekeeper kontrolü)
+- [x] İnen dosyalara macOS karantina etiketi (Gatekeeper kontrolü) — `EngineCore/Quarantine.swift`
 - [ ] GitHub Actions: her push'ta `swift test` + `node --test extension/test/`
 - [ ] Firefox/Safari çerezlerini dene, `cookies.txt` içe aktarma, elle User-Agent
 - [ ] M7 dağıtım: dmg + codesign + notarization (Apple Developer hesabı Doğukan'da)

@@ -58,7 +58,10 @@
     const button = document.createElement('button');
     button.className = 'button';
     button.title = 'Kervan ile indir';
-    button.innerHTML = '<span class="logo">K</span><span class="text">İndir</span><span class="close" title="Bu video için gizle">×</span>';
+    button.setAttribute('aria-label', 'Kervan ile indir');
+    button.setAttribute('aria-haspopup', 'menu');
+    button.innerHTML = '<span class="logo" aria-hidden="true">K</span><span class="text">İndir</span>'
+      + '<span class="close" role="button" aria-label="Bu video için gizle" title="Bu video için gizle">×</span>';
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -80,6 +83,8 @@
   }
 
   function layout() {
+    // Videosuz sayfada hiçbir şey yapılmaz (sayfaya öğe bile eklenmez).
+    if (!tracked.size && !openMenu) return;
     mountHost();
     for (const [video, entry] of tracked) {
       if (!video.isConnected) {
@@ -160,6 +165,11 @@
     menu.append(button);
   }
 
+  /** Menüdeki ilk seçeneğe odaklan (klavyeyle gezinme). */
+  function focusFirst(menu) {
+    menu.querySelector('button')?.focus({ preventScroll: true });
+  }
+
   async function showMenu(video, button) {
     const menu = menuShell(button, 'Kervan');
     status(menu, 'Seçenekler hazırlanıyor…');
@@ -174,6 +184,7 @@
     menu.querySelector('.status')?.remove();
     for (const candidate of options) option(menu, candidate.label, candidate.detail, () => choose(candidate));
     positionMenu();
+    focusFirst(menu);
   }
 
   /** Akış ya da sayfa için kalite listesi (yt-dlp formatları); alınamazsa varsayılan kaliteyle indirme seçeneği. */
@@ -200,6 +211,7 @@
       option(menu, 'Varsayılan kaliteyle indir', '', () => send(menu, request));
     }
     positionMenu();
+    focusFirst(menu);
   }
 
   async function send(menu, request) {
@@ -225,12 +237,20 @@
 
   // --- Olaylar ---
 
+  // DOM değişikliği, kaydırma ve boyut değişikliği kare başına bir kez işlenir; video taraması da
+  // her değişiklikte değil, karede bir kez yapılır (ağır sayfalarda yük olmasın).
   let scheduled = false;
-  function schedule() {
+  let needsScan = false;
+  function schedule(scanToo = false) {
+    needsScan ||= scanToo;
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
+      if (needsScan) {
+        needsScan = false;
+        scan();
+      }
       layout();
     });
   }
@@ -241,17 +261,26 @@
       if (event.target instanceof HTMLVideoElement) track(event.target);
     }, true);
   }
-  new MutationObserver(() => {
-    scan();
-    schedule();
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(() => schedule(true)).observe(document.documentElement, { childList: true, subtree: true });
   addEventListener('scroll', schedule, { capture: true, passive: true });
   addEventListener('resize', schedule, { passive: true });
   document.addEventListener('fullscreenchange', schedule);
   document.addEventListener('click', (event) => {
     if (openMenu && !event.composedPath().includes(host)) closeMenu();
   }, true);
-  addEventListener('keydown', (event) => event.key === 'Escape' && closeMenu());
+  addEventListener('keydown', (event) => {
+    if (!openMenu) return;
+    if (event.key === 'Escape') return closeMenu();
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const buttons = [...openMenu.element.querySelectorAll('button')];
+    if (!buttons.length) return;
+    event.preventDefault();
+    const index = buttons.indexOf(shadow.activeElement);
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    const next = index < 0 ? (step > 0 ? 0 : buttons.length - 1) : (index + step + buttons.length) % buttons.length;
+    buttons[next].focus({ preventScroll: true });
+  });
+  // Video yerinden oynarsa (animasyon, oynatıcı değişimi) düğme yetişsin; video yoksa layout hemen döner.
   setInterval(layout, 700);
 
   chrome.storage.local.get('overlay').then(({ overlay = true }) => {
