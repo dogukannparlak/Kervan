@@ -24,7 +24,7 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
             if case .progress(let progress) = event { progress } else { nil }
         }
         let downloads = events.filter { $0.phase == .download }
-        #expect(downloads.map(\.bytesDone) == [0, 1024, 223779, 223779 + 2048, 475961])
+        #expect(downloads.map(\.bytesDone) == [0, 1024, 223779, 223779 + 2048, 475961] as [Int64])
         #expect(downloads.allSatisfy { $0.bytesTotalEstimate == 475961 })
         #expect(downloads[1].message == "parça 1/2")
         #expect(downloads[3].message == "parça 2/2")
