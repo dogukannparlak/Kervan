@@ -77,7 +77,18 @@ struct MainView: View {
                 TableColumn("Durum") { item in Text(item.state.label).foregroundStyle(color(for: item.state)) }
                     .width(90)
                 TableColumn("İlerleme") { item in
-                    if item.state == .done {
+                    if item.state == .waiting {
+                        // Beklemedeyken yüzde yerine seçim ve başlatma düğmeleri.
+                        HStack(spacing: 6) {
+                            Button { configuring = [item] } label: {
+                                Label(item.presetId, systemImage: "slider.horizontal.3").lineLimit(1)
+                            }
+                            .help("Kalite / ayarlar")
+                            Button("İndir") { run(.resume, on: [item]) }
+                                .buttonStyle(.borderedProminent)
+                        }
+                        .controlSize(.small)
+                    } else if item.state == .done {
                         Text("100%").monospacedDigit().foregroundStyle(.secondary)
                     } else if let fraction = item.fraction {
                         HStack {
@@ -88,8 +99,8 @@ struct MainView: View {
                         ProgressView().controlSize(.small)
                     }
                 }
-                .width(min: 110, ideal: 150)
-                TableColumn("Boyut") { item in Text(item.sizeText).monospacedDigit() }.width(80)
+                .width(min: 170, ideal: 190)
+                TableColumn("Boyut") { item in Text(item.state == .waiting ? "" : item.sizeText).monospacedDigit() }.width(80)
                 TableColumn("Hız") { item in Text(item.speedText).monospacedDigit() }.width(80)
                 TableColumn("Kalan") { item in Text(item.etaText).monospacedDigit() }.width(56)
             }
