@@ -35,10 +35,12 @@ final class QueueStore {
                 do {
                     let events = try IPCClient()
                     guard try events.request(Request(cmd: .subscribe)).ok else { throw SocketError.disconnected }
-                    let client = try IPCClient()
-                    let list = try client.request(Request(cmd: .list))
-                    let settings = try client.request(Request(cmd: .settings))
-                    let version = try client.request(Request(cmd: .ping)).version
+                    // Ayrı, kısa ömürlü bağlantı: yanıtlar abonelik olaylarına karışmasın; iş bitince kapanır.
+                    let (list, settings, version) = try {
+                        let client = try IPCClient()
+                        return (try client.request(Request(cmd: .list)), try client.request(Request(cmd: .settings)),
+                                try client.request(Request(cmd: .ping)).version)
+                    }()
                     DispatchQueue.main.async {
                         MainActor.assumeIsolated { store?.connectedWith(list.items ?? [], settings: settings, version: version) }
                     }
