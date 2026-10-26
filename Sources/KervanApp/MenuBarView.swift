@@ -75,6 +75,8 @@ struct MenuBarView: View {
 struct MenuRow: View {
     @Environment(QueueStore.self) private var store
     let item: DownloadItem
+    /// İnen öğeyi iptal: ilk tıklama düğmeyi kırmızıya çevirir, 3 sn içinde ikinci tıklama iptal eder.
+    @State private var armed: Request.Command?
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
@@ -90,12 +92,24 @@ struct MenuRow: View {
             Spacer(minLength: 4)
             ForEach(item.actions.filter { $0 != .remove }, id: \.self) { action in
                 Button {
-                    if action == .reveal { store.reveal(item) } else { Task { await store.perform(action, ids: [item.id ?? 0]) } }
+                    if action == .reveal { return store.reveal(item) }
+                    if action.needsConfirmation(for: [item]), armed != action {
+                        armed = action
+                        Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            if armed == action { armed = nil }
+                        }
+                        return
+                    }
+                    armed = nil
+                    Task { await store.perform(action, ids: [item.id ?? 0]) }
                 } label: {
-                    Image(systemName: action.symbol)
+                    Image(systemName: armed == action ? "xmark.circle.fill" : action.symbol)
+                        .foregroundStyle(armed == action ? Color.red : Color.primary)
                 }
                 .buttonStyle(.borderless)
-                .help(action.title)
+                .help(armed == action ? "Onaylamak için tekrar tıkla" : action.title)
+                .accessibilityLabel(armed == action ? "\(action.title): onaylamak için tekrar tıkla" : action.title)
             }
         }
         .contentShape(Rectangle())

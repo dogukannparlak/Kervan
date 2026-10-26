@@ -157,6 +157,11 @@ extension DownloadItem {
 }
 
 extension Request.Command {
+    /// İnen ya da işlenen öğeyi iptal etmek/silmek onay ister: yarım iş kaybolur.
+    func needsConfirmation(for targets: [DownloadItem]) -> Bool {
+        (self == .cancel || self == .remove) && targets.contains { $0.state.isActive }
+    }
+
     var title: String {
         switch self {
         case .pause: "Durdur"

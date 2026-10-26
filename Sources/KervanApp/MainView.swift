@@ -20,12 +20,24 @@ enum QueueFilter: String, CaseIterable, Identifiable {
     }
 }
 
+/// Onay bekleyen eylem (inen öğeyi iptal/silme).
+struct PendingAction {
+    let action: Request.Command
+    let targets: [DownloadItem]
+
+    var title: String {
+        let what = targets.count == 1 ? "“\(targets[0].displayTitle)”" : "\(targets.count) öğe"
+        return action == .cancel ? "\(what) iptal edilsin mi?" : "\(what) listeden silinsin mi?"
+    }
+}
+
 struct MainView: View {
     @Environment(QueueStore.self) private var store
     @State private var selection = Set<DownloadItem.ID>()
     @State private var filter = QueueFilter.all
     @State private var adding = false
     @State private var addingURL = ""
+    @State private var pendingAction: PendingAction?
 
     /// Playlist çocukları grubun hemen altında, girintili.
     private var rows: [DownloadItem] {
@@ -128,6 +140,16 @@ struct MainView: View {
             }
         }
         .sheet(isPresented: $adding) { AddView(initialURL: addingURL).environment(store) }
+        .confirmationDialog(pendingAction?.title ?? "", isPresented: Binding(
+            get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }
+        ), presenting: pendingAction) { pending in
+            Button(pending.action == .cancel ? "İndirmeyi iptal et" : "Sil", role: .destructive) {
+                run(pending.action, on: pending.targets, confirmed: true)
+            }
+            Button("Vazgeç", role: .cancel) {}
+        } message: { _ in
+            Text("İnmekte olan kısım kaybolur.")
+        }
         .onAppear(perform: openPendingAdd)
         .onChange(of: store.pendingAdd) { openPendingAdd() }
         .onDeleteCommand { run(.remove, on: selectedItems.filter { $0.actions.contains(.remove) }) }
@@ -148,8 +170,12 @@ struct MainView: View {
         return first.actions.filter { shared.contains($0) && ($0 != .reveal || targets.count == 1) }
     }
 
-    private func run(_ action: Request.Command, on targets: [DownloadItem]) {
+    private func run(_ action: Request.Command, on targets: [DownloadItem], confirmed: Bool = false) {
         if action == .reveal, let item = targets.first { return store.reveal(item) }
+        if !confirmed, action.needsConfirmation(for: targets) {
+            pendingAction = PendingAction(action: action, targets: targets)
+            return
+        }
         Task { await store.perform(action, ids: targets.compactMap(\.id)) }
     }
 
