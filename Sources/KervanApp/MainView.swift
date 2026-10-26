@@ -133,6 +133,11 @@ struct MainView: View {
                 }
             }
             ToolbarItem {
+                Button { Task { await store.clean() } } label: { Label("Bitenleri temizle", systemImage: "checkmark.circle.badge.xmark") }
+                    .help("Bitmiş ve iptal edilmiş öğeleri listeden sil (dosyalar kalır)")
+                    .disabled(!store.items.values.contains { $0.kind != .group && ($0.state == .done || $0.state == .canceled) })
+            }
+            ToolbarItem {
                 Picker("Filtre", selection: $filter) {
                     ForEach(QueueFilter.allCases) { Text($0.rawValue).tag($0) }
                 }

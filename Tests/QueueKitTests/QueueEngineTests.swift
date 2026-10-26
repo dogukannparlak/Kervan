@@ -176,7 +176,7 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
     @Test func respectsPerHostLimit() async throws {
         let engine = try makeEngine(FakeExecutor(), config: testConfig(parallel: 5, perHost: 2))
         await engine.start()
-        for _ in 0..<3 { try await addURL(engine, "https://www.same.com/hang") }
+        for index in 0..<3 { try await addURL(engine, "https://www.same.com/hang?n=\(index)") }
         try await addURL(engine, "https://other.com/hang")
         #expect(await eventually { await engine.list().filter { $0.state == .downloading }.count == 3 })
         try await Task.sleep(for: .milliseconds(100))
@@ -284,8 +284,9 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
 
         let engine = try makeEngine(FakeExecutor(), resolver: FakeResolver(generic: true))
         func add() async throws -> DownloadItem? {
-            let outcome = try await engine.add(url: URL(string: "https://a.com/master.m3u8")!, options: AddOptions(
-                destination: directory.path, cookies: CookiePolicy("none"), context: RequestContext(filename: "Sayfa")))
+            var options = AddOptions(destination: directory.path, cookies: CookiePolicy("none"), context: RequestContext(filename: "Sayfa"))
+            options.force = true
+            let outcome = try await engine.add(url: URL(string: "https://a.com/master.m3u8")!, options: options)
             guard case .added(let items, _) = outcome else { return nil }
             return items.first
         }
@@ -318,6 +319,25 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(await eventually { await engine.item(id)?.state == .canceled })
         #expect(!FileManager.default.fileExists(atPath: part.path))
         #expect(FileManager.default.fileExists(atPath: directory.appending(path: "Başka.mp4").path))
+    }
+
+    @Test func duplicateNeedsForceAndCleanKeepsFiles() async throws {
+        let engine = try makeEngine(FakeExecutor())
+        await engine.start()
+        let first = try await addURL(engine, "https://a.com/ok")[0].id!
+        #expect(await eventually { await engine.item(first)?.state == .done })
+        await #expect(throws: QueueError.duplicate(first, .done)) { try await addURL(engine, "https://a.com/ok") }
+
+        var options = AddOptions(destination: "/tmp/kervan-test", cookies: CookiePolicy("none"))
+        options.force = true
+        guard case .added(let again, _) = try await engine.add(url: URL(string: "https://a.com/ok")!, options: options),
+              let second = again.first?.id else { return Issue.record("eklenmedi") }
+        #expect(await eventually { await engine.item(second)?.state == .done })
+
+        let waiting = try await addURL(engine, "https://a.com/hang")[0].id!
+        let removed = await engine.clean()
+        #expect(Set(removed) == [first, second])
+        #expect(await engine.list().map(\.id) == [waiting])
     }
 
     @Test func actionWithUnknownIdChangesNothing() async throws {

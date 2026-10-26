@@ -17,8 +17,10 @@ func connect() throws -> IPCClient {
 func send(_ request: Request, with client: IPCClient? = nil) throws -> Response {
     let response = try (client ?? connect()).request(request)
     guard response.ok else {
-        let message = response.error ?? "bilinmeyen hata"
-        throw CLIError(response.detail.map { "\(message)\n  ayrıntı: \($0)" } ?? message)
+        var message = response.error ?? "bilinmeyen hata"
+        if let detail = response.detail { message += "\n  ayrıntı: \(detail)" }
+        if response.duplicateOf != nil { message += "\n  yine de eklemek için: --force" }
+        throw CLIError(message)
     }
     return response
 }
@@ -34,15 +36,20 @@ struct Add: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Ekledikten sonra bitene kadar izle.")
     var watch = false
 
+    @Flag(help: "Aynı link ya da video listede olsa da ekle.")
+    var force = false
+
     func run() throws {
         _ = try options.validatedPreset()
         let client = try connect()
         var added: [Int64] = []
         for text in urls {
             let url = try parseURL(text)
-            let response = try send(Request(cmd: .add, url: url.absoluteString, preset: options.preset,
-                                            dir: options.explicitDirectory?.path, cookies: options.cookies, items: options.selection,
-                                            referer: options.referer, title: options.name, subtitles: options.subtitles), with: client)
+            var request = Request(cmd: .add, url: url.absoluteString, preset: options.preset,
+                                  dir: options.explicitDirectory?.path, cookies: options.cookies, items: options.selection,
+                                  referer: options.referer, title: options.name, subtitles: options.subtitles)
+            request.force = force
+            let response = try send(request, with: client)
             response.notes?.forEach { print("→ \($0)") }
             if let entries = response.entries {
                 printSelectionHint(title: response.title, entries: entries)
@@ -138,6 +145,15 @@ struct Remove: ItemActionCommand {
     static let command = Request.Command.remove
     static let verb = "silindi"
     @Argument var ids: [Int64]
+}
+
+struct Clean: ParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Bitmiş ve iptal edilmiş öğeleri listeden siler (dosyalar kalır).")
+
+    func run() throws {
+        let removed = try send(Request(cmd: .clean)).removed ?? []
+        print(removed.isEmpty ? "Temizlenecek öğe yok." : "✓ \(removed.count) öğe listeden silindi.")
+    }
 }
 
 struct Reveal: ItemActionCommand {

@@ -47,6 +47,7 @@ async function add(request, button) {
   const response = await chrome.runtime.sendMessage({ type: 'add', request });
   button.disabled = false;
   if (!response?.ok && response?.loginRequired && request.cookies !== 'fallback') return askCookies(request);
+  if (!response?.ok && response?.duplicateOf) return askForce(request, response.error);
   if (!response?.ok) return show(response?.error || 'bilinmeyen hata', true);
   if (response.entries) return askSelection(request, response);
   const first = response.items?.[0];
@@ -81,6 +82,15 @@ function askCookies(request) {
   $('result').append(retry);
 }
 
+/** Link zaten listede: kullanıcı isterse yine de ekle. */
+function askForce(request, message) {
+  show(`${message} `, true);
+  const again = document.createElement('button');
+  again.textContent = 'Yine de ekle';
+  again.addEventListener('click', () => add({ ...request, force: true }, again));
+  $('result').append(again);
+}
+
 function show(text, isError = false) {
   $('result').textContent = text;
   $('result').className = isError ? 'error' : '';
@@ -102,7 +112,7 @@ const CONFIRM_MS = 3000;
 const confirming = new Map(); // "id:komut" → bitiş zamanı
 
 async function control(cmd, id) {
-  const response = await chrome.runtime.sendMessage({ type: 'control', cmd, ids: [id] });
+  const response = await chrome.runtime.sendMessage({ type: 'control', cmd, ids: id === undefined ? undefined : [id] });
   if (!response?.ok) show(response?.error || 'İşlem yapılamadı.', true);
 }
 
@@ -159,6 +169,7 @@ function renderQueue() {
     list.replaceChildren(item);
   };
   if (queueError) return note(queueError);
+  $('clean').hidden = ![...queue.values()].some((i) => i.kind !== 'group' && (i.state === 'done' || i.state === 'canceled'));
   const items = [...queue.values()].filter((i) => i.kind !== 'group').sort((a, b) => b.id - a.id).slice(0, 8);
   if (!items.length) return note('Kuyruk boş.');
   list.replaceChildren(...items.map(queueRow));
@@ -222,4 +233,5 @@ const { overlay = true } = await chrome.storage.local.get('overlay');
 $('overlay').checked = overlay;
 $('overlay').addEventListener('change', (e) => chrome.storage.local.set({ overlay: e.target.checked }));
 
+$('clean').addEventListener('click', () => control('clean'));
 connectQueue();

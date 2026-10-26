@@ -48,6 +48,7 @@ public enum QueueError: Error, Equatable, CustomStringConvertible {
     case unknownPreset(String)
     case invalidURL(String)
     case localAddress(String)
+    case duplicate(Int64, ItemState)
     case invalidSelection(String)
     case notDownloadable(Int64)
 
@@ -57,6 +58,7 @@ public enum QueueError: Error, Equatable, CustomStringConvertible {
         case .invalidTransition(let id, let from, let to): "#\(id) şu an \(from.rawValue); \(to.rawValue) yapılamaz."
         case .unknownPreset(let id): "Bilinmeyen preset: \(id) (liste: kervan presets)."
         case .invalidURL(let url): "Geçerli bir http(s) linki değil: \(url)"
+        case .duplicate(let id, let state): "Bu link zaten listede: #\(id) (\(state.label)). Yine de eklenebilir."
         case .localAddress(let url): "Yerel ağ adresi tarayıcıdan indirilemez: \(url) (uygulamadan ya da kervan add ile ekle)."
         case .invalidSelection(let text): "Geçersiz seçim: \(text) (ör. 1,3 ya da 2-5)."
         case .notDownloadable(let id): "#\(id) bir grup; kendisi inmez."

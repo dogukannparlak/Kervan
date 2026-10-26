@@ -93,6 +93,12 @@ final class QueueStore {
         if !response.ok { message = response.error }
     }
 
+    /// Bitmiş ve iptal edilmiş öğeleri listeden siler (dosyalar kalır).
+    func clean() async {
+        let response = await send(Request(cmd: .clean))
+        message = response.ok ? "\(response.removed?.count ?? 0) öğe listeden silindi." : response.error
+    }
+
     func saveSettings() async {
         let response = await send(Request(cmd: .setSettings, settings: settings))
         if let saved = response.settings { settings = saved } else { message = response.error }

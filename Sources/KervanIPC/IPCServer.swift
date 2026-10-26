@@ -82,11 +82,13 @@ public final class IPCServer: Sendable {
                 // Klasör verilmediyse ayardaki indirme klasörü (+ açıksa tür klasörü).
                 let current = settings.value
                 let context = RequestContext(referer: request.referer, userAgent: request.userAgent, filename: request.title)
-                let outcome = try await engine.add(url: url, options: AddOptions(
+                var options = AddOptions(
                     presetId: request.preset ?? current.defaultPreset, destination: request.dir ?? current.downloadDirectory,
                     cookies: CookiePolicy(request.cookies ?? "auto"), selection: request.items, context: context,
                     subtitles: (request.subtitles ?? current.subtitles) ? current.subtitleLanguages : nil,
-                    categorize: request.dir == nil && current.categorize))
+                    categorize: request.dir == nil && current.categorize)
+                options.force = request.force ?? false
+                let outcome = try await engine.add(url: url, options: options)
                 switch outcome {
                 case .added(let items, let notes):
                     return Response(ok: true, items: items, notes: notes)
@@ -136,12 +138,15 @@ public final class IPCServer: Sendable {
             case .update:
                 guard let updater else { return .failure("Güncelleyici bu serviste yok.") }
                 return Response(ok: true, update: try await updater())
+            case .clean:
+                return Response(ok: true, removed: await engine.clean())
             case .subscribe:
                 return .failure("subscribe burada işlenmez.")
             }
         } catch {
             var response = Response.failure(ErrorText.friendly(error))
             response.detail = ErrorText.detail(error)
+            if case QueueError.duplicate(let id, _) = error { response.duplicateOf = id }
             if Self.needsLogin(error) { response.loginRequired = true }
             return response
         }

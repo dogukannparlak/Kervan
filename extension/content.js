@@ -224,6 +224,12 @@
       positionMenu();
       return;
     }
+    if (!response?.ok && response?.duplicateOf) {
+      status(menu, response.error, true);
+      option(menu, 'Yine de ekle', '', () => send(menu, { ...request, force: true }));
+      positionMenu();
+      return;
+    }
     if (!response?.ok) return status(menu, response?.error || 'Eklenemedi.', true);
     if (response.entries) {
       status(menu, `Bu sayfada ${response.entries.length} video var.`);

@@ -50,6 +50,8 @@ public struct Request: Codable, Sendable {
         case settings, setSettings
         /// yt-dlp'yi şimdi güncelle.
         case update
+        /// Bitmiş ve iptal edilmiş öğeleri listeden sil (dosyalar kalır).
+        case clean
     }
 
     public var cmd: Command
@@ -71,6 +73,8 @@ public struct Request: Codable, Sendable {
     public var settings: KervanSettings?
     /// Native host koyar: istek bir web sayfası bağlamından geldi (yerel ağ adresleri reddedilir).
     public var fromExtension: Bool?
+    /// Aynı link/video listede olsa da ekle.
+    public var force: Bool?
 
     public init(cmd: Command, url: String? = nil, preset: String? = nil, dir: String? = nil, cookies: String? = nil,
                 items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil, referer: String? = nil,
@@ -110,6 +114,8 @@ public struct Response: Codable, Sendable {
     public var loginRequired: Bool?
     /// `error` Türkçeye çevrildiyse aracın ham hata metni.
     public var detail: String?
+    /// Link zaten listede (bu öğe); istemci "yine de ekle" sunar (`force: true`).
+    public var duplicateOf: Int64?
 
     public init(ok: Bool, error: String? = nil, event: Bool? = nil, version: String? = nil, items: [DownloadItem]? = nil,
                 removed: [Int64]? = nil, title: String? = nil, entries: [ProbeResult.Entry]? = nil,

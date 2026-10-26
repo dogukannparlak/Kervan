@@ -19,7 +19,7 @@
   - Arayüz: iptal/silmede "yarım dosyaları da sil" seçeneği (CLI `--purge`, popup ve uygulamada onay).
   - Test: sahte klasörde `.part` dosyası oluştur → iptal → silindi mi.
 
-- [ ] **2. Aynı linki tekrar ekleme uyarısı + temizlik**
+- [x] **2. Aynı linki tekrar ekleme uyarısı + temizlik** — aynı link ya da `çıkarıcı:kimlik` → `duplicateOf` + "Yine de ekle" (`force`); `kervan clean`, araç çubuğu, popup; log budama ve `kervand.log` döndürme
   - Kuyrukta ya da bitenlerde aynı URL (ya da aynı yt-dlp `id`) varsa `add` yanıtı uyarı dönsün:
     "zaten indirildi (#12), yine de?" → istemci `force: true` ile yeniden gönderir.
   - "Bitenleri temizle": `done` ve `canceled` öğeleri kuyruktan siler (dosyalara dokunmaz). CLI `kervan clean`,

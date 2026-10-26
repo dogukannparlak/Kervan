@@ -20,6 +20,8 @@ struct AddView: View {
     @State private var selection = "all"
     @State private var busy = false
     @State private var error: String?
+    /// Link zaten listede: "Yine de ekle" gösterilir.
+    @State private var duplicateOf: Int64?
 
     private var presetChoices: [(id: String, label: String)] {
         if !qualities.isEmpty {
@@ -59,6 +61,9 @@ struct AddView: View {
                 }
             }
             if let error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+            if duplicateOf != nil {
+                Button("Yine de ekle") { Task { await add(force: true) } }.disabled(busy)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 560)
@@ -92,11 +97,14 @@ struct AddView: View {
         }
     }
 
-    private func add() async {
+    private func add(force: Bool = false) async {
         busy = true
         defer { busy = false }
-        let response = await store.send(Request(cmd: .add, url: url.trimmingCharacters(in: .whitespaces), preset: preset, dir: folder,
-                                                cookies: "auto", items: entries.isEmpty ? nil : selection, subtitles: subtitles))
+        var request = Request(cmd: .add, url: url.trimmingCharacters(in: .whitespaces), preset: preset, dir: folder,
+                              cookies: "auto", items: entries.isEmpty ? nil : selection, subtitles: subtitles)
+        request.force = force
+        let response = await store.send(request)
+        duplicateOf = response.duplicateOf
         if !response.ok {
             error = response.error
         } else if let found = response.entries {

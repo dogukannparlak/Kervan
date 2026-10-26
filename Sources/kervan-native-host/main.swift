@@ -10,7 +10,7 @@ import KervanIPC
 // kullanıcının açık onayıyla ("fallback"), yerel ağ adresleri servis tarafında reddedilir (`fromExtension`).
 
 let allowed: Set<Request.Command> = [
-    .ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal, .formats, .settings, .subscribe,
+    .ping, .add, .list, .log, .pause, .resume, .cancel, .retry, .remove, .reveal, .formats, .settings, .subscribe, .clean,
 ]
 var subscribed = false
 

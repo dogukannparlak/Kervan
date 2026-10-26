@@ -23,6 +23,8 @@ public struct AddOptions: Sendable {
     public var subtitles: String?
     /// true ise `destination/<Kategori>/` altına iner.
     public var categorize: Bool
+    /// true ise aynı link/video listede olsa da eklenir.
+    public var force = false
 
     public init(presetId: String = "1080p", destination: String, cookies: CookiePolicy = CookiePolicy("auto"),
                 selection: String? = nil, context: RequestContext = RequestContext(), subtitles: String? = nil,
@@ -152,6 +154,7 @@ public actor QueueEngine {
 
     public func add(url: URL, options: AddOptions) async throws -> AddOutcome {
         guard try PresetStore.named(options.presetId) != nil else { throw QueueError.unknownPreset(options.presetId) }
+        if !options.force, let existing = duplicate(url: url.absoluteString, mediaId: nil) { throw existing }
         let resolved = try await resolver.resolve(url, cookies: options.cookies, context: options.context)
         let kind: ItemKind = resolved.kind == .http ? .http : .video
         let destination = options.categorize
@@ -170,6 +173,9 @@ public actor QueueEngine {
             base.title = base.filename ?? (url.lastPathComponent.isEmpty ? url.host() : url.lastPathComponent)
             added = try store.insert([base])
         case .video(let info):
+            if let extractor = info.extractor, let videoId = info.id { base.mediaId = "\(extractor):\(videoId)" }
+            // Aynı video başka bir linkle (kısa link, farklı parametre) eklenmiş olabilir.
+            if !options.force, let existing = duplicate(url: nil, mediaId: base.mediaId) { throw existing }
             // Genel çıkarıcı (m3u8, düz mp4) başlık olarak "master" gibi dosya adı verir; sayfa başlığı daha iyi.
             base.title = info.extractor == "generic" ? (base.filename ?? info.title) : info.title
             if info.extractor != "generic" { base.filename = nil }
@@ -208,6 +214,27 @@ public actor QueueEngine {
         refreshGroups(of: added)
         schedule()
         return .added(added.compactMap { $0.id }.compactMap { items[$0] }, notes: resolved.notes)
+    }
+
+    /// Aynı link ya da aynı video (yt-dlp kimliği) listede varsa en yenisi için hata; yoksa nil.
+    private func duplicate(url: String?, mediaId: String?) -> QueueError? {
+        let match = items.values.filter { item in
+            item.kind != .group && ((url != nil && item.url == url) || (mediaId != nil && item.mediaId == mediaId))
+        }.max { ($0.id ?? 0) < ($1.id ?? 0) }
+        guard let match, let id = match.id else { return nil }
+        return .duplicate(id, match.state)
+    }
+
+    /// Bitmiş ve iptal edilmiş öğeleri listeden siler (dosyalara dokunmaz); boş kalan grup da gider.
+    /// Silinen kimlikleri döner.
+    public func clean() -> [Int64] {
+        let finished = items.values.filter { $0.kind != .group && ($0.state == .done || $0.state == .canceled) }
+        let parents = Set(finished.compactMap(\.parentId))
+        for id in finished.compactMap(\.id) { removeNow(id) }
+        let emptyGroups = parents.filter { parent in !items.values.contains { $0.parentId == parent } }
+        for id in emptyGroups { removeNow(id) }
+        refreshGroups(ids: Array(parents.subtracting(emptyGroups)))
+        return finished.compactMap(\.id) + emptyGroups.sorted()
     }
 
     /// Aynı klasörde aynı adlı dosya (uzantı ne olursa olsun: "ad.mp4", "ad.f137.mp4.part") ya da kuyruk öğesi

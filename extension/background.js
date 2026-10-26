@@ -105,10 +105,11 @@ function cookieChoice(value) {
 }
 
 /** `request.preset` (kalite menüsünden) yoksa popup'taki varsayılan kalite. */
-async function addToKervan({ url, pageUrl, title, items, preset: chosen, cookies }) {
+async function addToKervan({ url, pageUrl, title, items, preset: chosen, cookies, force, size }) {
   const preset = chosen || (await preferences()).preset;
   return send({
-    cmd: 'add', url, preset, items, cookies: cookieChoice(cookies),
+    cmd: 'add', url, preset, items, cookies: cookieChoice(cookies), force: force === true || undefined,
+    size: Number.isFinite(size) && size > 0 ? Math.round(size) : undefined,
     referer: referer(url, pageUrl),
     userAgent: navigator.userAgent,
     title: title || undefined,
@@ -166,6 +167,14 @@ async function notifyResult(request, response) {
       buttons: [{ title: 'Tarayıcı çerezleriyle dene' }],
       requireInteraction: true,
     };
+  } else if (!response?.ok && response?.duplicateOf) {
+    await remember(id, { ...request, force: true });
+    options = {
+      title: 'Kervan: zaten listede',
+      message: response.error,
+      buttons: [{ title: 'Yine de ekle' }],
+      requireInteraction: true,
+    };
   } else if (!response?.ok) {
     options = { title: 'Kervan: eklenemedi', message: response?.error || 'bilinmeyen hata' };
   } else if (response.entries) {
@@ -195,7 +204,7 @@ chrome.notifications.onClosed.addListener((id) => {
 
 // --- Açılır pencere ile konuşma ---
 
-const CONTROL_COMMANDS = ['pause', 'resume', 'cancel', 'retry', 'remove', 'reveal'];
+const CONTROL_COMMANDS = ['pause', 'resume', 'cancel', 'retry', 'remove', 'reveal', 'clean'];
 
 /**
  * Mesaj eklentinin kendi sayfasından mı (popup)? İçerik betikleri her sitenin her çerçevesinde çalışır;

@@ -12,7 +12,7 @@ struct KervanCommand: AsyncParsableCommand {
         discussion: "Kuyruk komutları (add, list, watch…) arka plandaki kervand servisine bağlanır: kervan service install.",
         version: kervanVersion,
         subcommands: [
-            Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Reveal.self, Log.self,
+            Add.self, List.self, Watch.self, Pause.self, Resume.self, Cancel.self, Retry.self, Remove.self, Clean.self, Reveal.self, Log.self,
             Get.self, Probe.self, Formats.self, Update.self, Config.self, Service.self, AppCommand.self, Extension.self, Doctor.self, Presets.self,
         ]
     )

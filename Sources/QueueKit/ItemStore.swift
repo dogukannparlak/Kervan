@@ -120,4 +120,20 @@ public final class LogStore: Sendable {
     func remove(_ id: Int64) {
         try? FileManager.default.removeItem(at: directory.appending(path: "\(id).log"))
     }
+
+    /// Kuyrukta olmayan öğelerin ve `maxAge`'den eski log'ları siler (servis açılışında). Silinen sayısı.
+    @discardableResult
+    public func prune(keeping ids: Set<Int64>, maxAge: TimeInterval = 30 * 24 * 3600, now: Date = Date()) -> Int {
+        let key = URLResourceKey.contentModificationDateKey
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [key])) ?? []
+        var removed = 0
+        for file in files where file.pathExtension == "log" {
+            let id = Int64(file.deletingPathExtension().lastPathComponent)
+            let modified = (try? file.resourceValues(forKeys: [key]))?.contentModificationDate ?? now
+            guard id.map({ !ids.contains($0) }) ?? true || now.timeIntervalSince(modified) > maxAge else { continue }
+            try? FileManager.default.removeItem(at: file)
+            removed += 1
+        }
+        return removed
+    }
 }
