@@ -44,6 +44,10 @@ Seçenekler (`add`/`get`): `-p best|1080p|720p|audio` ya da herhangi bir yüksek
 - **Ayarlar** (⌘,): indirme klasörü, tür klasörleri, varsayılan kalite, altyazı, eşzamanlılık,
   yt-dlp otomatik güncelleme, pano izleme, oturum açılınca başlatma.
 - **Pano izleme**: video sitesi ya da dosya linki kopyalanınca sağ üstte "Kervan'a ekle" önerisi.
+  "⃠" o siteyi bir daha önermez (Ayarlar'dan geri alınır).
+- **Sürükle-bırak**: linki pencereye ya da menü çubuğu penceresine bırakınca kuyruğa eklenir.
+- **Görünüm**: menü çubuğu uygulaması olarak başlar; Ayarlar'da "Menü çubuğunda göster" ve "Dock'ta göster".
+  İkisi de kapalıysa arka planda çalışır; pencere için Kervan.app'i yeniden aç.
 
 ### Brave eklentisi (bir kez)
 

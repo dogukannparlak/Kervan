@@ -42,7 +42,7 @@
     "Erişim reddedildi (403): sayfayı yenileyip eklentiden tekrar gönder".
   - Ham hata `kervan log <id>`'de kalsın.
 
-- [ ] **5. Dock'ta görünmesin, yalnız menü çubuğu**
+- [x] **5. Dock'ta görünmesin, yalnız menü çubuğu** — Doğukan'ın kararıyla ayarlanabilir: Kervan.app menü çubuğu uygulaması olarak (LSUIElement, açılışta pencere yok) başlar; Ayarlar → Görünüm'de "Menü çubuğunda göster" / "Dock'ta göster"; ikisi de kapalıysa arka planda çalışır, Kervan.app yeniden açılınca pencere gelir (araç çubuğunda Ayarlar düğmesi). Bildirimi uygulamanın göndermesi denemesi açık.
   - 297d503'teki Dock değişikliğini geri al: `AppCommand` → `AppBundle.build(..., dock: false)` (LSUIElement).
   - Pencere yine Kervan.app'e tıklanınca ve menüden "Pencereyi aç" ile açılsın (`applicationShouldHandleReopen`).
   - Dock rozeti bu yüzden düştü.
@@ -62,8 +62,8 @@ playlist çocuklarının linkleri yerel ağ için ayrıca denetlenmiyor.
 ## Daha sonra
 
 - [ ] Hız sınırı ve zamanlayıcı (aria2 canlı, yt-dlp `--limit-rate` + `.part`'tan yeniden başlatma; `pmset sleepnow`)
-- [ ] Sürükle-bırak ile ekleme (pencere ve menü çubuğu)
-- [ ] Pano izlemede "bu siteyi önerme" listesi
+- [x] Sürükle-bırak ile ekleme (pencere ve menü çubuğu)
+- [x] Pano izlemede "bu siteyi önerme" listesi (öneride ⃠ düğmesi; Ayarlar'dan geri alınır)
 - [ ] Tarayıcı indirmelerini yakalama (eklentiye `downloads` izni)
 - [ ] Video indirmede paralel parça (`-N 4`), etkisi ölçülerek
 - [x] İnen dosyalara macOS karantina etiketi (Gatekeeper kontrolü) — `EngineCore/Quarantine.swift`

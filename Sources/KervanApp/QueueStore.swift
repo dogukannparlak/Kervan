@@ -93,6 +93,31 @@ final class QueueStore {
         if !response.ok { message = response.error }
     }
 
+    /// Sürükle-bırak: her http(s) linki varsayılan ayarlarla eklenir; çok videolu sayfa ekleme sayfasında açılır.
+    func addDropped(_ urls: [URL]) {
+        let links = urls.filter { ["http", "https"].contains($0.scheme?.lowercased() ?? "") }
+        guard !links.isEmpty else {
+            message = "Bırakılan şey bir web linki değil."
+            return
+        }
+        Task {
+            var added = 0
+            var problems: [String] = []
+            for link in links {
+                let response = await send(Request(cmd: .add, url: link.absoluteString, cookies: "auto"))
+                if response.entries != nil {
+                    pendingAdd = link.absoluteString
+                    MainWindow.show()
+                } else if response.ok {
+                    added += 1
+                } else {
+                    problems.append(response.error ?? link.absoluteString)
+                }
+            }
+            message = problems.isEmpty ? "\(added) link eklendi." : "\(added) link eklendi; \(problems.joined(separator: " · "))"
+        }
+    }
+
     /// Bitmiş ve iptal edilmiş öğeleri listeden siler (dosyalar kalır).
     func clean() async {
         let response = await send(Request(cmd: .clean))

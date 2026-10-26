@@ -107,6 +107,15 @@ import Testing
     }
 }
 
+@Suite struct ClipboardIgnoreTests {
+    @Test func ignoredHostsIncludeSubdomains() {
+        let hosts = ["youtube.com"]
+        #expect(ClipboardHeuristics.isIgnored(URL(string: "https://www.youtube.com/watch?v=1")!, hosts: hosts))
+        #expect(ClipboardHeuristics.isIgnored(URL(string: "https://m.youtube.com/watch?v=1")!, hosts: hosts))
+        #expect(!ClipboardHeuristics.isIgnored(URL(string: "https://notyoutube.com/a.mp4")!, hosts: hosts))
+    }
+}
+
 @Suite struct ClipboardTests {
     @Test(arguments: [
         ("https://www.youtube.com/watch?v=jNQXAC9IVRw", true),

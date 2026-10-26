@@ -27,10 +27,22 @@ final class ClipboardWatcher {
         guard pasteboard.changeCount != changeCount else { return }
         changeCount = pasteboard.changeCount
         guard store?.settings.clipboardWatch == true, store?.connected == true,
-              let url = ClipboardHeuristics.looksDownloadable(pasteboard.string(forType: .string) ?? ""), url != lastSuggested
+              let url = ClipboardHeuristics.looksDownloadable(pasteboard.string(forType: .string) ?? ""), url != lastSuggested,
+              !ClipboardHeuristics.isIgnored(url, hosts: Self.ignoredHosts)
         else { return }
         lastSuggested = url
         show(url)
+    }
+
+    static var ignoredHosts: [String] {
+        (UserDefaults.standard.string(forKey: AppPreferences.ignoredHosts) ?? "").split(separator: ",").map(String.init)
+    }
+
+    /// "Bu siteyi önerme": site listeye eklenir (Ayarlar'dan geri alınır).
+    static func ignore(_ url: URL) {
+        let host = DownloadItem.host(of: url)
+        guard !host.isEmpty, !ignoredHosts.contains(host) else { return }
+        UserDefaults.standard.set((ignoredHosts + [host]).joined(separator: ","), forKey: AppPreferences.ignoredHosts)
     }
 
     private func show(_ url: URL) {
@@ -80,8 +92,15 @@ struct ClipboardSuggestion: View {
             Spacer(minLength: 4)
             if status == nil {
                 Button("Ekle") { add() }.keyboardShortcut(.defaultAction)
+                Button {
+                    ClipboardWatcher.ignore(url)
+                    onClose()
+                } label: { Image(systemName: "nosign") }
+                    .buttonStyle(.borderless)
+                    .help("\(url.host() ?? "Bu site") önerilmesin (Ayarlar'dan geri alınır)")
+                    .accessibilityLabel("Bu siteyi önerme")
             }
-            Button { onClose() } label: { Image(systemName: "xmark") }.buttonStyle(.borderless)
+            Button { onClose() } label: { Image(systemName: "xmark") }.buttonStyle(.borderless).accessibilityLabel("Kapat")
         }
         .padding(12)
         .frame(width: 360, height: 76)

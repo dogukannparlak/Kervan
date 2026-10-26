@@ -21,14 +21,15 @@ struct AppCommand: ParsableCommand {
             quit.arguments = ["-x", "KervanApp"]
             try? quit.run()
             quit.waitUntilExit()
+            // Dock'suz (LSUIElement) başlar; Ayarlar → "Dock'ta göster" açılırsa uygulama kendisi Dock'a geçer.
             try AppBundle.build(at: app, executable: "KervanApp", bundleID: "com.dogukan.kervan", from: AppBundle.buildDirectory,
-                                dock: true)
+                                dock: false)
             let open = Process()
             open.executableURL = URL(filePath: "/usr/bin/open")
             open.arguments = [app.path]
             try open.run()
             open.waitUntilExit()
-            print("✓ \(app.path) kuruldu ve açıldı (menü çubuğunda ↓ simgesi).")
+            print("✓ \(app.path) kuruldu ve açıldı (menü çubuğunda ↓ simgesi; görünmüyorsa Kervan.app'i yeniden aç → pencere).")
             if IPCClient.ping() == nil { print("  Servis çalışmıyor: kervan service install") }
         }
     }

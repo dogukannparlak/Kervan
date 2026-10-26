@@ -4,11 +4,29 @@ import QueueKit
 import ServiceManagement
 import SwiftUI
 
+/// Uygulamanın kendi tercihleri (UserDefaults; servisin ayarlarından ayrı).
+enum AppPreferences {
+    /// Menü çubuğunda ↓ simgesi (varsayılan açık).
+    static let showInMenuBar = "showInMenuBar"
+    /// Dock simgesi (varsayılan kapalı: Kervan menü çubuğu uygulaması olarak, arka planda çalışır).
+    static let showInDock = "showInDock"
+    /// Pano izlemenin önermeyeceği siteler.
+    static let ignoredHosts = "clipboardIgnoredHosts"
+
+    static var menuBarVisible: Bool { UserDefaults.standard.object(forKey: showInMenuBar) as? Bool ?? true }
+
+    /// Kervan.app Dock'suz (LSUIElement) başlar; ayar açıksa normal uygulamaya (Dock + uygulama menüsü) geçer.
+    @MainActor static func applyDockPolicy() {
+        NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: showInDock) ? .regular : .accessory)
+    }
+}
+
 @main
 struct KervanApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = QueueStore()
     @State private var clipboard = ClipboardWatcher()
+    @AppStorage(AppPreferences.showInMenuBar) private var showInMenuBar = true
 
     var body: some Scene {
         Window("Kervan", id: "main") {
@@ -18,8 +36,10 @@ struct KervanApp: App {
                 .task { start() }
         }
         .defaultSize(width: 980, height: 520)
+        // Açılışta pencere yok, menü çubuğunda başlar; simge gizliyse pencere açılır (yoksa hiçbir giriş kalmaz).
+        .defaultLaunchBehavior(showInMenuBar ? .suppressed : .presented)
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showInMenuBar) {
             MenuBarView()
                 .environment(store)
                 .task { start() }
@@ -55,8 +75,8 @@ struct MenuBarLabel: View {
                 Image(systemName: "arrow.down.circle")
             }
         }
-        // Menü çubuğu etiketi her zaman var: pencereyi (kapatılmış olsa da) yeniden açabilen yol buradan alınır.
-        .onAppear { MainWindow.opener = { openWindow(id: "main") } }
+        // Pencere kapatılmış olsa da yeniden açabilen yol (menü çubuğu simgesi gizliyse pencere görünümünden alınır).
+        .onAppear { MainWindow.remember(openWindow) }
     }
 }
 
@@ -64,6 +84,10 @@ struct MenuBarLabel: View {
 @MainActor
 enum MainWindow {
     static var opener: (() -> Void)?
+
+    static func remember(_ openWindow: OpenWindowAction) {
+        if opener == nil { opener = { openWindow(id: "main") } }
+    }
 
     static func show() {
         NSApp.activate()
@@ -75,13 +99,18 @@ enum MainWindow {
     }
 }
 
-/// Dock simgesine ya da Kervan.app'e tıklanınca pencere açılır; pencere kapanınca uygulama kapanmaz
-/// (menü çubuğu, pano izleme ve bildirimler sürsün).
+/// Kervan menü çubuğu uygulaması olarak açılır; Dock simgesine ya da Kervan.app'e yeniden tıklanınca pencere açılır.
+/// Pencere kapanınca uygulama kapanmaz: arka planda menü çubuğu, pano izleme ve bildirimler sürer.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(300))
-            MainWindow.show()
+        MainActor.assumeIsolated {
+            AppPreferences.applyDockPolicy()
+            if !AppPreferences.menuBarVisible {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    MainWindow.show()
+                }
+            }
         }
     }
 

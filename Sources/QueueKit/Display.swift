@@ -56,6 +56,12 @@ public enum ClipboardHeuristics {
         "kick.com": ["/videos/", "/clips/"],
     ]
 
+    /// "Bu siteyi önerme" listesindeki site (alt alan adları dahil: "youtube.com" → "m.youtube.com").
+    public static func isIgnored(_ url: URL, hosts: [String]) -> Bool {
+        let host = DownloadItem.host(of: url)
+        return hosts.contains { host == $0 || host.hasSuffix("." + $0) }
+    }
+
     public static func looksDownloadable(_ text: String) -> URL? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.contains(where: \.isWhitespace), let url = URL(string: trimmed),

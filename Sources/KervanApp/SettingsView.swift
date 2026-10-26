@@ -7,6 +7,9 @@ struct SettingsView: View {
     @Environment(QueueStore.self) private var store
     @State private var loginItem = LoginItem.isEnabled
     @State private var loginError: String?
+    @AppStorage(AppPreferences.showInMenuBar) private var showInMenuBar = true
+    @AppStorage(AppPreferences.showInDock) private var showInDock = false
+    @AppStorage(AppPreferences.ignoredHosts) private var ignoredHosts = ""
 
     var body: some View {
         @Bindable var store = store
@@ -39,8 +42,34 @@ struct SettingsView: View {
                 }
                 Button("Şimdi güncelle") { Task { await store.updateYtDlp() } }
             }
+            Section("Görünüm") {
+                Toggle("Menü çubuğunda göster", isOn: $showInMenuBar)
+                Toggle("Dock'ta göster", isOn: $showInDock)
+                    .onChange(of: showInDock) { AppPreferences.applyDockPolicy() }
+                Text(showInMenuBar || showInDock
+                     ? "Pencere kapanınca Kervan arka planda çalışmaya devam eder."
+                     : "Kervan arka planda çalışır; pencere ve ayarlar için Kervan.app'i yeniden aç.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Uygulama") {
                 Toggle("Panoya video linki kopyalanınca öner", isOn: $store.settings.clipboardWatch)
+                if !ignoredList.isEmpty {
+                    LabeledContent("Önerilmeyen siteler") {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            ForEach(ignoredList, id: \.self) { host in
+                                HStack {
+                                    Text(host).foregroundStyle(.secondary)
+                                    Button { ignoredHosts = ignoredList.filter { $0 != host }.joined(separator: ",") } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help("Bu siteyi yeniden öner")
+                                    .accessibilityLabel("\(host) sitesini yeniden öner")
+                                }
+                            }
+                        }
+                    }
+                }
                 Toggle("Oturum açılınca başlat", isOn: $loginItem)
                     .onChange(of: loginItem) { _, enabled in
                         do {
@@ -59,6 +88,8 @@ struct SettingsView: View {
         .frame(width: 520)
         .onChange(of: store.settings) { _, _ in Task { await store.saveSettings() } }
     }
+
+    private var ignoredList: [String] { ignoredHosts.split(separator: ",").map(String.init) }
 
     private func chooseFolder() {
         let panel = NSOpenPanel()

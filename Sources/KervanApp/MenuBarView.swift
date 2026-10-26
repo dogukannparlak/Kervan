@@ -54,6 +54,10 @@ struct MenuBarView: View {
         }
         .padding(12)
         .frame(width: 340)
+        .dropDestination(for: URL.self) { urls, _ in
+            store.addDropped(urls)
+            return true
+        }
     }
 
     private func add() {

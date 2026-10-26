@@ -33,6 +33,7 @@ struct PendingAction {
 
 struct MainView: View {
     @Environment(QueueStore.self) private var store
+    @Environment(\.openWindow) private var openWindow
     @State private var selection = Set<DownloadItem.ID>()
     @State private var filter = QueueFilter.all
     @State private var adding = false
@@ -111,10 +112,15 @@ struct MainView: View {
                 if rows.isEmpty {
                     ContentUnavailableView(store.items.isEmpty ? "Kuyruk boş" : "Bu filtrede öğe yok",
                                            systemImage: "arrow.down.circle",
-                                           description: Text("Eklemek için ⌘N ya da Brave'de videonun üstündeki düğme."))
+                                           description: Text("Eklemek için ⌘N, linki buraya sürükle ya da Brave'de videonun üstündeki düğme."))
                 }
             }
             StatusBar()
+        }
+        // Tarayıcıdan link ya da adres çubuğundan sürüklenen sayfa doğrudan eklenir.
+        .dropDestination(for: URL.self) { urls, _ in
+            store.addDropped(urls)
+            return true
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
@@ -138,6 +144,10 @@ struct MainView: View {
                     .disabled(!store.items.values.contains { $0.kind != .group && ($0.state == .done || $0.state == .canceled) })
             }
             ToolbarItem {
+                // Dock ve menü çubuğu gizliyken uygulama menüsü yok; ayarlara buradan ulaşılır.
+                SettingsLink { Label("Ayarlar", systemImage: "gearshape") }.help("Ayarlar (⌘,)")
+            }
+            ToolbarItem {
                 Picker("Filtre", selection: $filter) {
                     ForEach(QueueFilter.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -155,7 +165,11 @@ struct MainView: View {
         } message: { _ in
             Text("İnmekte olan kısım kaybolur.")
         }
-        .onAppear(perform: openPendingAdd)
+        .onAppear {
+            // Menü çubuğu simgesi gizliyse pencereyi yeniden açabilen yol buradan alınır.
+            MainWindow.remember(openWindow)
+            openPendingAdd()
+        }
         .onChange(of: store.pendingAdd) { openPendingAdd() }
         .onDeleteCommand { run(.remove, on: selectedItems.filter { $0.actions.contains(.remove) }) }
     }
