@@ -133,6 +133,21 @@ final class QueueStore {
         }
     }
 
+    /// Duraklatılmış (beklemede) indirilebilir öğeler; gruplar sayılmaz.
+    var waitingIDs: [Int64] {
+        items.values.filter { $0.kind != .group && $0.state == .paused }.compactMap(\.id)
+    }
+
+    var waitingCount: Int { waitingIDs.count }
+
+    /// Beklemedekilerin hepsini indirmeye başlatır.
+    func resumeWaiting() async {
+        let ids = waitingIDs
+        guard !ids.isEmpty else { return }
+        let response = await send(Request(cmd: .resume, ids: ids))
+        if !response.ok { message = response.error }
+    }
+
     /// Bitmiş ve iptal edilmiş öğeleri listeden siler (dosyalar kalır).
     func clean() async {
         let response = await send(Request(cmd: .clean))

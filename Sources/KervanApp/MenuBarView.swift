@@ -25,6 +25,13 @@ struct MenuBarView: View {
                     Button("Servisi başlat") { store.startService() }.controlSize(.small)
                 }
             }
+            if store.waitingCount > 0 {
+                HStack {
+                    Label("\(store.waitingCount) beklemede", systemImage: "pause.circle").font(.callout)
+                    Spacer()
+                    Button("Başlat") { Task { await store.resumeWaiting() } }.controlSize(.small)
+                }
+            }
             HStack {
                 TextField("Link yapıştır", text: $link).textFieldStyle(.roundedBorder)
                     .onSubmit(add)

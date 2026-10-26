@@ -5,6 +5,7 @@ import SwiftUI
 enum QueueFilter: String, CaseIterable, Identifiable {
     case all = "Tümü"
     case active = "Etkin"
+    case waiting = "Beklemede"
     case done = "Biten"
     case failed = "Hatalı"
 
@@ -14,6 +15,7 @@ enum QueueFilter: String, CaseIterable, Identifiable {
         switch self {
         case .all: true
         case .active: !item.state.isFinished
+        case .waiting: item.state == .paused
         case .done: item.state == .done
         case .failed: item.state == .failed || item.state == .canceled
         }
@@ -143,13 +145,23 @@ struct MainView: View {
                     .help("Bitmiş ve iptal edilmiş öğeleri listeden sil (dosyalar kalır)")
                     .disabled(!store.items.values.contains { $0.kind != .group && ($0.state == .done || $0.state == .canceled) })
             }
+            if store.waitingCount > 0 {
+                ToolbarItem {
+                    Button { Task { await store.resumeWaiting() } } label: {
+                        Label("Beklemedekileri başlat", systemImage: "play.circle")
+                    }
+                    .help("Beklemedeki \(store.waitingCount) öğeyi indirmeye başlat")
+                }
+            }
             ToolbarItem {
                 // Dock ve menü çubuğu gizliyken uygulama menüsü yok; ayarlara buradan ulaşılır.
                 SettingsLink { Label("Ayarlar", systemImage: "gearshape") }.help("Ayarlar (⌘,)")
             }
             ToolbarItem {
                 Picker("Filtre", selection: $filter) {
-                    ForEach(QueueFilter.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(QueueFilter.allCases) { option in
+                        Text(option == .waiting && store.waitingCount > 0 ? "Beklemede (\(store.waitingCount))" : option.rawValue).tag(option)
+                    }
                 }
                 .pickerStyle(.segmented)
             }
