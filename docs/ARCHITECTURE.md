@@ -1,6 +1,6 @@
 # Kervan — Mimari Detayı
 
-> README'nin 2–3. bölümlerini derinleştirir: modül sözleşmeleri, state machine,
+> [PLAN.md](PLAN.md)'nin 2–3. bölümlerini derinleştirir: modül sözleşmeleri, state machine,
 > veri modeli. Kod değil, "kim ne yapar, ne döner".
 
 ## 1. EngineCore — dış araçlarla tek temas noktası

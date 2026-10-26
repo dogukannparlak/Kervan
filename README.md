@@ -1,271 +1,72 @@
+**English** · [Türkçe](README.tr.md)
+
 # Kervan
 
-> IDM benzeri, **yt-dlp tabanlı**, native macOS indirme yöneticisi.
-> **Durum: v0.5 (2026-10-23)** — menü çubuğu uygulaması + arka plan servisi + Brave eklentisi.
-> Videonun üstünde "İndir" düğmesi ve kalite seçimi, kuyruk (durdur/devam/iptal), bildirim, pano izleme,
-> tür klasörleri, altyazı, MP3, yt-dlp'nin kendiliğinden güncellenmesi.
-> Sıradaki işler: [`docs/YAPILACAKLAR.md`](docs/YAPILACAKLAR.md).
+A native macOS download manager in the spirit of IDM, built on [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [aria2](https://aria2.github.io/).
+It does not reimplement downloading: it queues, supervises and presents the best existing tools.
 
-## Hızlı başlangıç
+**Status: v0.5.** Menu bar app, background service, CLI and a Chromium extension (Brave/Chrome/Edge).
+
+- "Download this video" button over videos, with a quality picker (resolution and approximate size)
+- Queue with pause / resume / cancel / retry, survives app and terminal restarts
+- Clipboard watcher, drag and drop, macOS notifications
+- Per-type folders, subtitles, MP3 extraction, automatic yt-dlp updates (signature-verified when `gpg` is installed)
+- Downloaded files get the macOS quarantine flag, like browser downloads
+
+> The user interface and most documentation are currently in Turkish. See [README.tr.md](README.tr.md) for the full command and extension guide.
+
+## Requirements
+
+- macOS 15 or later, Swift 6 toolchain (Xcode 16+)
+- `yt-dlp`, `ffmpeg`, `aria2`, `deno` (installed by `scripts/install-deps.sh`, uses Homebrew)
+
+## Quick start
 
 ```bash
-scripts/install-deps.sh                # yt-dlp, ffmpeg, aria2, deno
+scripts/install-deps.sh                 # yt-dlp, ffmpeg, aria2, deno
 swift build -c release
-.build/release/kervan service install  # kervand'ı LaunchAgent olarak kurar ve başlatır
-.build/release/kervan extension install # Brave/Chrome/Edge köprüsü (Native Messaging)
-.build/release/kervan app install       # ~/Applications/Kervan.app (menü çubuğu + pencere)
+.build/release/kervan service install   # installs and starts kervand as a LaunchAgent
+.build/release/kervan app install       # ~/Applications/Kervan.app (menu bar + window)
+.build/release/kervan extension install # Native Messaging bridge for Brave/Chrome/Edge
 alias kervan=$PWD/.build/release/kervan
 
-kervan add <url> [<url>…] -w           # kuyruğa ekle, -w: bitene kadar izle
-kervan add <sayfa> --all               # sayfadaki bütün videolar (--items 1,3)
-kervan list                            # ls; --all bitmişleri de gösterir
-kervan watch                           # canlı tablo
-kervan pause 3 · resume 3 · cancel 3 · retry 3 · rm 3
-kervan log 3 -n 50
-kervan formats <url>                   # kalite seçenekleri ve yaklaşık boyutlar (-p 720p gibi kullan)
-kervan reveal 3                        # bitmiş dosyayı Finder'da göster
-kervan get <url>                       # servissiz, ön planda tek indirme
-kervan doctor                          # araçlar + servis + güncelleme durumu
-kervan update                          # yt-dlp'yi şimdi güncelle (servis günde bir kez kendisi yapar;
-                                       #   gpg kuruluysa yt-dlp imzası da doğrulanır: brew install gnupg)
-kervan config [ad] [değer]             # ayarlar: maxParallel, categorize, subtitles, defaultPreset…
-kervan service status | uninstall
+kervan add <url> -w        # queue a download and watch it
+kervan list                # current queue (--all includes finished)
+kervan formats <url>       # quality options with approximate sizes
+kervan doctor              # tools, service and update status
 ```
 
-Seçenekler (`add`/`get`): `-p best|1080p|720p|audio` ya da herhangi bir yükseklik (`480p`, `1440p`, `2160p`), `-d <klasör>` (varsayılan `~/Downloads/Kervan`),
-`--cookies auto|none|brave|firefox…` (auto: site giriş isterse Brave çerezi), `--referer <sayfa>`,
-`--name <dosya adı>`.
+Browser extension: open `brave://extensions` (or `chrome://extensions`), enable Developer mode,
+choose **Load unpacked**, and select the `extension/` folder. The extension ID is pinned by the
+`key` field in `manifest.json`, so the native messaging bridge works without further setup.
 
-### Uygulama (Kervan.app)
+## Architecture
 
-- **Menü çubuğu** (↓ simgesi, inen sayısı): etkin indirmeler, durdur/devam, link yapıştırıp ekleme.
-- **Pencere**: IDM tarzı tablo (ad, durum, ilerleme, boyut, hız, kalan), filtreler, araç çubuğu, sağ tık;
-  çift tık dosyayı açar; ⌘N ekleme penceresi (kalite listesi, klasör, altyazı).
-- **Ayarlar** (⌘,): indirme klasörü, tür klasörleri, varsayılan kalite, altyazı, eşzamanlılık,
-  yt-dlp otomatik güncelleme, pano izleme, oturum açılınca başlatma.
-- **Pano izleme**: video sitesi ya da dosya linki kopyalanınca sağ üstte "Kervan'a ekle" önerisi.
-  "⃠" o siteyi bir daha önermez (Ayarlar'dan geri alınır).
-- **Sürükle-bırak**: linki pencereye ya da menü çubuğu penceresine bırakınca kuyruğa eklenir.
-- **Görünüm**: menü çubuğu uygulaması olarak başlar; Ayarlar'da "Menü çubuğunda göster" ve "Dock'ta göster".
-  İkisi de kapalıysa arka planda çalışır; pencere için Kervan.app'i yeniden aç.
+`kervand` (LaunchAgent) is the single owner of the queue; the app, CLI and extension talk to it over a
+local Unix socket. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Turkish).
 
-### Brave eklentisi (bir kez)
-
-1. `kervan extension install`
-2. `brave://extensions` → sağ üstte **Geliştirici modu** → **Paketlenmemiş öğe yükle** → bu repodaki `extension/`
-3. Kimlik `ifkabkcjdlkjbgijfnphgecoggfjdgek` görünmeli.
-
-Kullanım:
-- **Videonun sağ üst köşesinde "Bu videoyu indir"** düğmesi çıkar (IDM gibi). Tıklayınca menü: videonun
-  dosyası, yakalanan akışlar (HLS/DASH) ve "Sayfadan indir" (yt-dlp). Akış ya da sayfa seçilince **kalite
-  listesi** gelir ("1080p60 · ~268 MB", "Yalnız ses"); YouTube gibi tek seçenekli sayfada doğrudan kalite listesi.
-  "×" o video için gizler; popup'taki kutucuk hepsini kapatır.
-- Araç çubuğundaki **K** simgesi: rozet yakalanan medya sayısı; pencerede **Sayfayı indir**, yakalanan
-  medya için **İndir**, kuyrukta **Durdur / Devam / İptal / Yeniden / Sil / Klasörde göster**.
-- Sağ tık → "Kervan ile indir": bağlantı, video ve sayfa için.
-- İndirme bitince ya da hata verince **macOS bildirimi** gelir (playlist'te liste bitince bir kez).
-- Eklentiden gelen isteklerde tarayıcı çerezi **kendiliğinden kullanılmaz**: site giriş isterse
-  "Tarayıcı çerezleriyle dene" düğmesi çıkar. Yerel ağ adresleri (localhost, 192.168.x, `.local`…)
-  eklentiden indirilemez; bunları uygulamadan ya da `kervan add` ile ekle.
-- İnen öğeyi iptal etmek/silmek onay ister (popup'ta ikinci tıklama, uygulamada onay penceresi).
-
-İnen dosyalara tarayıcıların yaptığı gibi macOS karantina etiketi konur (indirilen .app/.pkg Gatekeeper'dan geçer).
-
-Eklenti testleri: `node --test extension/test/*.test.mjs`.
-
----
-
-## 1. Temel Fikir
-
-Kendi indirme motorumuzu yazmıyoruz. Alanında en iyi hazır araçları, arkalarından
-**yöneten bir katman** olarak sarıyoruz:
-
-| Araç | Görev | Durum (2026-10-23) |
-|---|---|---|
-| **yt-dlp** | Video siteleri: metadata, format seçimi, indirme, fragment-resume | ✅ 2026.08.19 (brew) |
-| **ffmpeg** | Ayrı gelen görüntü + ses akışlarını birleştirme (remux), mp3 çıkarma | ✅ 9.0.2 (brew) |
-| **aria2c** | Doğrudan HTTP(S) linkleri: çok bağlantılı paralel indirme, JSON-RPC ile yönetim | ✅ 1.37.0 (brew) |
-| **deno** | yt-dlp'nin YouTube imza/JS çözümü için kullandığı JS çalışma ortamı | ✅ kurulu (brew) |
-
-**ffmpeg neden M1'de:** YouTube artık sesli+görüntülü tek dosya (eski 18/22 formatları)
-sunmuyor; 360p dahil her format ya yalnız görüntü ya yalnız ses. ffmpeg olmadan
-YouTube'dan sesli video inmez. (Doğrulama: `yt-dlp -F aqz-KE-bpKQ`, 2026-10-23.)
-
-Swift 6 / SwiftUI ile yazılan native uygulama bu araçları child process olarak yönetir.
-Kuyruk, state machine ve kalıcılık bizim katmanımızdır.
-
----
-
-## 2. Mimari
-
-```
-┌──────────────────────┐   ┌──────────────────────┐
-│ Kervan.app (SwiftUI) │   │ kervan (CLI)         │   ← istemciler
-└──────────┬───────────┘   └──────────┬───────────┘
-           └────────── XPC / yerel soket ┘
-                       ↓
-┌─────────────────────────────────────────────────┐
-│ kervand (LaunchAgent)   ← kuyruğun TEK sahibi    │
-│   QueueKit   : kuyruk, state machine, SQLite     │
-│   EngineCore : ProcessRunner + adapter'lar       │
-│     ├─ URLClassifier  (video mu, düz dosya mı)   │
-│     ├─ YtDlpAdapter   (video siteleri)           │
-│     ├─ Aria2Adapter   (HTTP, aria2 JSON-RPC)     │
-│     └─ FFmpegLocator  (ffmpeg yolu / sürümü)     │
-└─────────────────────────────────────────────────┘
-                       ↓
-        yt-dlp · ffmpeg · aria2c · deno
-```
-
-Kurallar:
-- **Kuyruğu yalnız `kervand` çalıştırır.** CLI ve app ona komut gönderir, olay dinler.
-  App ya da terminal kapansa da indirme sürer; Mac yeniden açılınca LaunchAgent
-  servisi kaldırır ve kuyruk kaldığı yerden devam eder.
-- **QueueKit ve EngineCore GUI'den bağımsızdır.** Önce CLI + servis bitirilir,
-  SwiftUI kabuk sonra gelir.
-
-### Modül dökümü
-
-| Modül | Nerede | Sorumluluk |
-|---|---|---|
-| `ProcessRunner` | EngineCore | Child process başlatma, satır satır stdout/stderr, temiz sonlandırma (SIGINT → bekle → SIGKILL), sessizlik zaman aşımı |
-| `URLClassifier` | EngineCore | HEAD isteği + Content-Type + yt-dlp `direct` alanı → hangi adapter |
-| `YtDlpAdapter` | EngineCore | Probe (`-J --flat-playlist`), indirme (`--newline --progress-template`), ham ilerleme alanlarını ayrıştırma |
-| `Aria2Adapter` | EngineCore | Tek `aria2c --enable-rpc` süreci; ekleme/duraklatma/devam/ilerleme JSON-RPC ile |
-| `FFmpegLocator` | EngineCore | ffmpeg yolunu bulma; yoksa video öğesini açık hata ile reddetme |
-| `QueueKit` | QueueKit | SQLite (GRDB, WAL) kalıcı state, state machine, eşzamanlılık, retry/backoff |
-| `kervand` | servis | LaunchAgent; kuyruğu işletir, istemcilere komut + olay arayüzü sunar |
-| `ClipboardWatcher`, `Notifier`, `DockBadge` | app | Pano izleme, bildirim, dock yüzdesi |
-
----
-
-## 3. Bir indirmenin hayatı
-
-```
-Link eklenir (CLI, app, pano, tarayıcı uzantısı)
-        ↓
-URLClassifier
-  1) HEAD: Content-Type video/html değil ve dosya adı varsa → DÜZ HTTP
-  2) değilse yt-dlp probe: -J --flat-playlist
-       direct: true            → DÜZ HTTP
-       _type: playlist         → her giriş ayrı çocuk öğe
-       aksi                    → VIDEO
-        ↓                                   ↓
-YtDlpAdapter                          Aria2Adapter (RPC)
-  preset → format seçimi               -x8 -s8 --continue
-  ffmpeg ile birleştirme               ↓
-        ↓                                   ↓
-     ProgressEvent (bayt · hız · ETA · aşama)
-        ↓
-QueueKit state: queued → probing → downloading → postprocessing → done
-                                  (paused · failed · canceled her aktif durumdan)
-        ↓
-~/Downloads/Kervan/ + macOS bildirimi + dock
-```
-
-> Not: düz bir `.tar.gz` linkinde `yt-dlp -J` **başarılı** döner
-> (`extractor: generic, direct: true`). Bu yüzden "probe başarısızsa HTTP"
-> kuralı işe yaramaz; sınıflandırma yukarıdaki sırayla yapılır.
-
-### Eşzamanlılık & kuyruk
-
-- Varsayılan **3 indirme aynı anda** (ayarlardan 1–10).
-- Site başına sınır (varsayılan 2) + aynı siteye ardışık başlatmalar arasında kısa gecikme (rate-limit).
-- **Playlist**: `--flat-playlist` ile listelenir; her giriş ayrı öğe (`parentId`).
-- **Pause/resume**: yt-dlp'de SIGINT + `.part` dosyasından devam; aria2'de RPC `pause`/`unpause`.
-- **Retry**: yt-dlp `--retries 10 --fragment-retries 10`; üstte öğe başına 3 deneme, exponential backoff.
-
-### Kalite ön ayarları (`Sources/EngineCore/Resources/presets/*.json`)
-
-| Preset | yt-dlp format seçimi (taslak) | Çıktı |
-|---|---|---|
-| `best` | `bv*+ba/b` | mkv (4K/AV1/VP9 dahil) |
-| `1080p` | `bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]` | mp4 (QuickTime uyumlu öncelikli) |
-| `720p` | aynı mantık, `height<=720` | mp4 |
-| `audio` | `ba[ext=m4a]/ba` | m4a; mp3 için `-x --audio-format mp3` (M6) |
-
-Preset'ler veri olarak tutulur, kodda sabit değildir.
-
----
-
-## 4. "Her şey" kapsamı
-
-1. **Binlerce site**: yt-dlp ekstraktörleri.
-2. **Tarayıcı çerezleri** (üyelere özel içerik): `--cookies-from-browser`.
-   - **Brave/Chrome (macOS)**: çalışıyor (M1.5, 2026-10-23: Brave'den 1709 çerez okundu).
-     Chrome 127'nin App-Bound şifrelemesi Windows'a özgü.
-   - **Firefox**: en kolay; şifresiz SQLite.
-   - **Safari**: `Cookies.binarycookies` için **Full Disk Access** gerekir.
-   - Yedek yol: Netscape formatında `cookies.txt` içe aktarma.
-3. **Altyazı**: `--write-subs --sub-langs tr,en`; preset'te seçilebilir.
-4. **Doğrudan HTTP**: aria2 çok bağlantılı indirme; referer/User-Agent/yönlendirme desteği.
-5. **(M3) Tarayıcı eklentisi**: Brave/Chromium (Manifest V3). Sayfanın ağ trafiğinden video/m3u8/mpd
-   akışlarını yakalar, IDM'in "Bu videoyu indir" düğmesinin karşılığı; Safari M7'de opsiyonel.
-
----
-
-## 5. Klasör planı
-
-```
-Kervan/
-├── README.md
-├── Package.swift                ← tek kök paket
-├── Sources/
-│   ├── EngineCore/              ← ProcessRunner, URLClassifier, adapter'lar
-│   │   └── Resources/presets/   ← preset JSON'ları (paket kaynağı)
-│   ├── QueueKit/                ← state machine, SQLite, eşzamanlılık
-│   ├── KervanIPC/               ← soket protokolü, sunucu/istemci, dosya yolları
-│   ├── kervand/                 ← servis (LaunchAgent)
-│   ├── kervan-native-host/      ← tarayıcı eklentisi köprüsü (Native Messaging)
-│   └── kervan/                  ← CLI
-├── Tests/
-│   ├── EngineCoreTests/         ← MockProcess ile, ağsız
-│   ├── QueueKitTests/
-│   └── Integration/             ← gerçek indirme (ağ ister, ayrı çalıştırılır)
-├── app/                         ← Kervan.app Xcode projesi (M3); kök paketi yerel bağımlılık olarak kullanır
-├── extension/                   ← Brave/Chromium eklentisi (MV3): detect.js, background.js, popup, test/
-├── docs/
-│   ├── ARCHITECTURE.md
-│   └── ROADMAP.md
-└── scripts/                     ← install-deps.sh, dev yardımcıları
-```
-
----
-
-## 6. Yol haritası (özet; detay `docs/ROADMAP.md`)
-
-Öncelik: IDM gibi her videoyu yakalamak → çerez ve tarayıcı eklentisi uygulamadan önce.
-
-| Aşama | Ne | Bitti kriteri |
-|---|---|---|
-| **M0** ✅ | Plan + mimari | bu belge |
-| **M1** ✅ | Paket + CLI tek indirme (ffmpeg dahil) | 1080p YouTube tek mp4; HTTP zip aria2 ile |
-| **M1.5** ✅ | Brave çerezi + çok videolu sayfa | giriş isteyen sitede otomatik çerez; sayfadaki videolar `--all` ile |
-| **M2** ✅ | `kervand` + kalıcı kuyruk | servis öldürülüp açılınca kuyruk kaldığı yerden sürer |
-| **M3** ✅ | Brave eklentisi: ağdan video yakalama | yt-dlp'nin tanımadığı sayfadaki video tek tıkla iner |
-| **M4** | SwiftUI app MVP | terminal açmadan ekle/duraklat/devam/iptal |
-| **M5** | UX cila | panodaki link 3 sn'de kuyruğa; bildirim + dock yüzdesi |
-| **M6** | Altyazı, mp3, başlıklar, diğer tarayıcı çerezleri | gömülü altyazı; mp3 + kapak |
-| **M7** | Dağıtım | dmg Homebrew'suz başka Mac'te çalışır |
-
-Kapsam dışı: DRM'li servisler (Netflix, Disney+, Spotify…).
-
-Varsayılan indirme dizini: `~/Downloads/Kervan/`.
-
----
-
-## 7. Riskler & kararlar
-
-| Risk | Plan |
+| Module | Role |
 |---|---|
-| YouTube ayıklaması sık bozulur | yt-dlp sürümü kilitlenmez; `kervan doctor` sürüm ve deno kontrolü yapar, güncellemeyi önerir |
-| ffmpeg yoksa video birleşmez | `FFmpegLocator` başlangıçta kontrol eder; yoksa video öğesi açık hata verir (sessizce yalnız görüntü indirmez) |
-| Çerez okuma izinleri | Brave/Chrome: Keychain onayı; Safari: Full Disk Access; yedek: cookies.txt |
-| Dağıtım (başka Mac) | Homebrew'a güvenilmez: yt-dlp (standalone), ffmpeg, aria2c, deno ya `~/Library/Application Support/Kervan/bin`'e ilk açılışta indirilir ya pakete gömülür (M7 kararı). Gömülürse GPL/LGPL lisans metinleri eklenir |
-| App Store sandbox | Hedeflenmez; dmg + codesign + notarization |
-| Aynı siteye paralel istek → rate-limit | global 3 + site başına 2 + başlatma gecikmesi |
-| Kişisel kullanım | Kervan araçtır; indirilen içeriğin hakları kullanıcıdadır |
+| `EngineCore` | process runner, URL classification, yt-dlp and aria2 adapters |
+| `QueueKit` | queue, state machine, persistence |
+| `KervanIPC` | socket protocol, settings, paths |
+| `kervand` | background service |
+| `kervan` | CLI |
+| `KervanApp` | SwiftUI menu bar app |
+| `kervan-native-host` | browser extension bridge |
 
----
+## Tests
 
-*Proje anayasası, v0.1.*
+```bash
+swift test
+node --test extension/test/*.test.mjs
+```
+
+## Scope and responsibility
+
+DRM-protected services are out of scope. Kervan is a tool: you are responsible for having the right
+to download the content you fetch. yt-dlp, ffmpeg, aria2 and deno are separate projects with their own licenses.
+
+## License
+
+[MIT](LICENSE)
