@@ -10,6 +10,9 @@ enum AppPreferences {
     static let showInMenuBar = "showInMenuBar"
     /// Dock simgesi (varsayılan kapalı: Kervan menü çubuğu uygulaması olarak, arka planda çalışır).
     static let showInDock = "showInDock"
+    /// Sürükle-bırak davranışı: tek video ve liste için ayrı (`DropBehavior`).
+    static let dropSingle = "dropSingle"
+    static let dropPlaylist = "dropPlaylist"
     /// Pano izlemenin önermeyeceği siteler.
     static let ignoredHosts = "clipboardIgnoredHosts"
 
@@ -18,6 +21,23 @@ enum AppPreferences {
     /// Kervan.app Dock'suz (LSUIElement) başlar; ayar açıksa normal uygulamaya (Dock + uygulama menüsü) geçer.
     @MainActor static func applyDockPolicy() {
         NSApp.setActivationPolicy(UserDefaults.standard.bool(forKey: showInDock) ? .regular : .accessory)
+    }
+}
+
+/// Sürükle-bırakılan link ne olsun.
+enum DropBehavior: String, CaseIterable, Identifiable {
+    case ask, now, paused
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .ask: "Ekleme sayfasını aç"
+        case .now: "Hemen indir"
+        case .paused: "Beklemede ekle"
+        }
+    }
+
+    static func current(_ key: String) -> DropBehavior {
+        DropBehavior(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .ask
     }
 }
 

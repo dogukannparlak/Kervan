@@ -93,34 +93,43 @@ final class QueueStore {
         if !response.ok { message = response.error }
     }
 
-    /// Sürükle-bırak: tek link hemen inmez, ekleme sayfasında (kalite, klasör…) açılır; birden çok link toplu bırakıldıysa
-    /// varsayılan ayarlarla eklenir. Çok videolu sayfa her durumda ekleme sayfasında açılır.
+    /// Sürükle-bırak: davranış Ayarlar'da, tek video ve liste için ayrı seçilir (ekleme sayfası / hemen indir /
+    /// beklemede ekle). Liste mi olduğu önce kalite sorgusundan öğrenilir (sonuç önbellekte; ekleme aynı çıkarmayı kullanır).
+    /// Birden çok link toplu bırakılırsa ekleme sayfası yerine beklemede eklenir (hiçbiri kendiliğinden inmez).
     func addDropped(_ urls: [URL]) {
         let links = urls.filter { ["http", "https"].contains($0.scheme?.lowercased() ?? "") }
         guard !links.isEmpty else {
             message = "Bırakılan şey bir web linki değil."
             return
         }
-        if links.count == 1 {
-            pendingAdd = links[0].absoluteString
-            MainWindow.show()
-            return
-        }
         Task {
             var added = 0
+            var waiting = 0
             var problems: [String] = []
             for link in links {
-                let response = await send(Request(cmd: .add, url: link.absoluteString, cookies: "auto"))
-                if response.entries != nil {
+                let probe = await send(Request(cmd: .formats, url: link.absoluteString, cookies: "auto"))
+                let isPlaylist = probe.qualities?.isPlaylist == true
+                var behavior = DropBehavior.current(isPlaylist ? AppPreferences.dropPlaylist : AppPreferences.dropSingle)
+                if behavior == .ask && links.count > 1 { behavior = .paused }
+                if behavior == .ask {
                     pendingAdd = link.absoluteString
                     MainWindow.show()
-                } else if response.ok {
-                    added += 1
+                    continue
+                }
+                var request = Request(cmd: .add, url: link.absoluteString, cookies: "auto", items: isPlaylist ? "all" : nil)
+                request.paused = behavior == .paused
+                let response = await send(request)
+                if response.ok {
+                    if behavior == .paused { waiting += 1 } else { added += 1 }
                 } else {
                     problems.append(response.error ?? link.absoluteString)
                 }
             }
-            message = problems.isEmpty ? "\(added) link eklendi." : "\(added) link eklendi; \(problems.joined(separator: " · "))"
+            var parts: [String] = []
+            if added > 0 { parts.append("\(added) link eklendi") }
+            if waiting > 0 { parts.append("\(waiting) link beklemede (listeden devam ettir)") }
+            parts += problems
+            if !parts.isEmpty { message = parts.joined(separator: " · ") }
         }
     }
 

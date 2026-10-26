@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var loginError: String?
     @AppStorage(AppPreferences.showInMenuBar) private var showInMenuBar = true
     @AppStorage(AppPreferences.showInDock) private var showInDock = false
+    @AppStorage(AppPreferences.dropSingle) private var dropSingle = DropBehavior.ask.rawValue
+    @AppStorage(AppPreferences.dropPlaylist) private var dropPlaylist = DropBehavior.ask.rawValue
     @AppStorage(AppPreferences.ignoredHosts) private var ignoredHosts = ""
 
     var body: some View {
@@ -49,6 +51,16 @@ struct SettingsView: View {
                 Text(showInMenuBar || showInDock
                      ? "Pencere kapanınca Kervan arka planda çalışmaya devam eder."
                      : "Kervan arka planda çalışır; pencere ve ayarlar için Kervan.app'i yeniden aç.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Sürükle-bırak") {
+                Picker("Tek video", selection: $dropSingle) {
+                    ForEach(DropBehavior.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Picker("Liste (playlist)", selection: $dropPlaylist) {
+                    ForEach(DropBehavior.allCases) { Text($0.label).tag($0.rawValue) }
+                }
+                Text("Liste algılanırsa seçim listenin tamamına uygulanır. Birden çok link bırakılırsa hiçbiri kendiliğinden inmez.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Uygulama") {

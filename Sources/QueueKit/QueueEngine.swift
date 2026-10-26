@@ -25,6 +25,8 @@ public struct AddOptions: Sendable {
     public var categorize: Bool
     /// true ise aynı link/video listede olsa da eklenir.
     public var force = false
+    /// true ise öğeler duraklatılmış eklenir; kullanıcı "devam"a basana kadar inmez.
+    public var startPaused = false
     /// İstemcinin seçtiği kalitenin ya da yakalanan dosyanın yaklaşık boyutu (bayt).
     public var sizeHint: Int64?
 
@@ -164,6 +166,7 @@ public actor QueueEngine {
             : options.destination
         var base = DownloadItem(url: url.absoluteString, kind: .video, host: DownloadItem.host(of: url), presetId: options.presetId,
                                 destination: destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
+        if options.startPaused { base.state = .paused }
         base.referer = options.context.referer
         base.userAgent = options.context.userAgent
         base.subtitles = options.subtitles

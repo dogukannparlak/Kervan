@@ -75,6 +75,8 @@ public struct Request: Codable, Sendable {
     public var fromExtension: Bool?
     /// Aynı link/video listede olsa da ekle.
     public var force: Bool?
+    /// Duraklatılmış ekle: indirme kullanıcı devam ettirene kadar başlamaz.
+    public var paused: Bool?
     /// Seçilen kalitenin ya da dosyanın yaklaşık boyutu (bayt); sıradaki öğede boyut gösterilir.
     public var size: Int64?
 

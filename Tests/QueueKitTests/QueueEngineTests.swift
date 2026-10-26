@@ -276,6 +276,26 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(await engine.list().isEmpty)
     }
 
+    @Test func pausedAddWaitsUntilResumed() async throws {
+        let executor = FakeExecutor()
+        let engine = try makeEngine(executor, resolver: FakeResolver(entries: 2))
+        await engine.start()
+        var options = AddOptions(destination: "/tmp/kervan-test", cookies: CookiePolicy("none"), selection: "all")
+        options.startPaused = true
+        guard case .added(let items, _) = try await engine.add(url: URL(string: "https://e.com/list")!, options: options) else {
+            Issue.record("eklenmeliydi")
+            return
+        }
+        let children = items.filter { $0.kind == .video }
+        #expect(children.count == 2 && children.allSatisfy { $0.state == .paused })
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(executor.runs("https://e.com/v1/ok") == 0)
+
+        let ids = children.compactMap(\.id)
+        _ = try await engine.apply(.resume, to: ids)
+        #expect(await eventually { await engine.item(ids[0])?.state == .done })
+    }
+
     @Test func filenameHintIsMadeUnique() async throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "kervan-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

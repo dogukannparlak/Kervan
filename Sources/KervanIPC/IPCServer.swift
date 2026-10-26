@@ -88,6 +88,7 @@ public final class IPCServer: Sendable {
                     subtitles: (request.subtitles ?? current.subtitles) ? current.subtitleLanguages : nil,
                     categorize: request.dir == nil && current.categorize)
                 options.force = request.force ?? false
+                options.startPaused = request.paused ?? false
                 options.sizeHint = request.size.flatMap { $0 > 0 ? $0 : nil }
                 let outcome = try await engine.add(url: url, options: options)
                 switch outcome {

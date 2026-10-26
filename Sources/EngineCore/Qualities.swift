@@ -20,10 +20,13 @@ public struct QualityList: Codable, Sendable, Equatable {
     public let title: String?
     /// Boşsa sayfa çok videolu (playlist) ya da format bilgisi yok; varsayılan preset kullanılır.
     public let options: [QualityOption]
+    /// Çok videolu sayfa mı (istemci sürükle-bırakta davranışı buna göre seçer); eski servis yanıtlarında yok.
+    public let isPlaylist: Bool?
 
-    public init(title: String?, options: [QualityOption]) {
+    public init(title: String?, options: [QualityOption], isPlaylist: Bool? = nil) {
         self.title = title
         self.options = options
+        self.isPlaylist = isPlaylist
     }
 }
 
@@ -116,7 +119,8 @@ extension YtDlpAdapter {
         let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context)
         do {
             let probe = try JSONDecoder().decode(FormatProbe.self, from: data)
-            return QualityList(title: probe.title, options: probe.type == "playlist" ? [] : QualityPlanner.options(from: probe))
+            let isPlaylist = probe.type == "playlist"
+            return QualityList(title: probe.title, options: isPlaylist ? [] : QualityPlanner.options(from: probe), isPlaylist: isPlaylist)
         } catch {
             throw EngineError.invalidProbeOutput(String(describing: error))
         }

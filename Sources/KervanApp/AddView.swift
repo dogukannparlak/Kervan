@@ -69,8 +69,13 @@ struct AddView: View {
         .frame(width: 560)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Vazgeç") { dismiss() } }
+            ToolbarItem(placement: .automatic) {
+                Button("Beklemede ekle") { Task { await add(paused: true) } }
+                    .help("Listeye eklenir ama inmez; hazır olunca listeden devam ettirirsin")
+                    .disabled(busy || URL(string: url)?.scheme == nil)
+            }
             ToolbarItem(placement: .confirmationAction) {
-                Button(busy ? "Ekleniyor…" : "Ekle") { Task { await add() } }
+                Button(busy ? "Ekleniyor…" : (entries.isEmpty ? "İndir" : "Listeyi indir")) { Task { await add() } }
                     .disabled(busy || URL(string: url)?.scheme == nil)
             }
         }
@@ -78,6 +83,8 @@ struct AddView: View {
             url = initialURL.isEmpty ? (ClipboardHeuristics.looksDownloadable(NSPasteboard.general.string(forType: .string) ?? "")?.absoluteString ?? "") : initialURL
             preset = store.settings.defaultPreset
             subtitles = store.settings.subtitles
+            // Sürükle-bırak ya da pano ile açıldıysa kaliteler hemen gelsin: seçip "İndir" ya da "Beklemede ekle".
+            if URL(string: url)?.scheme != nil { Task { await loadQualities() } }
         }
     }
 
@@ -97,12 +104,13 @@ struct AddView: View {
         }
     }
 
-    private func add(force: Bool = false) async {
+    private func add(force: Bool = false, paused: Bool = false) async {
         busy = true
         defer { busy = false }
         var request = Request(cmd: .add, url: url.trimmingCharacters(in: .whitespaces), preset: preset, dir: folder,
                               cookies: "auto", items: entries.isEmpty ? nil : selection, subtitles: subtitles)
         request.force = force
+        request.paused = paused
         request.size = qualities.first { $0.preset == preset }?.size
         let response = await store.send(request)
         duplicateOf = response.duplicateOf
@@ -112,7 +120,7 @@ struct AddView: View {
             entries = found
             error = nil
         } else {
-            store.message = "Kuyruğa eklendi: \(response.items?.first?.displayTitle ?? url)"
+            store.message = (paused ? "Beklemede: " : "Kuyruğa eklendi: ") + (response.items?.first?.displayTitle ?? url)
             dismiss()
         }
     }
