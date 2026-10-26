@@ -36,9 +36,14 @@ public struct Aria2Adapter: Sendable {
                     if let name = context.filename, !url.pathExtension.isEmpty { options["out"] = .string("\(name).\(url.pathExtension)") }
                     let gid: String = try await rpc.call("aria2.addUri", [.array([.string(url.absoluteString)]), .object(options)])
 
+                    var announced = false
                     while true {
                         try await Task.sleep(for: .milliseconds(500))
                         let status: Aria2Status = try await rpc.call("aria2.tellStatus", [.string(gid)])
+                        if !announced, let path = status.files.first?.path, !path.isEmpty {
+                            continuation.yield(.started(URL(filePath: path)))
+                            announced = true
+                        }
                         switch status.status {
                         case "complete":
                             guard let path = status.files.first?.path, !path.isEmpty else { throw EngineError.noOutputFile }

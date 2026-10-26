@@ -63,6 +63,10 @@ public struct DownloadItem: Codable, Sendable, Equatable, Identifiable, Fetchabl
     public var eta: Int?
     public var message: String?
     public var outputPath: String?
+    /// Aracın yazdığı (henüz bitmemiş) dosya; iptalde yarım dosyalar bununla bulunur.
+    public var partialPath: String?
+    /// "<çıkarıcı>:<video kimliği>" (yt-dlp); aynı videonun tekrar eklenmesini fark etmek için.
+    public var mediaId: String?
     public var createdAt: Date
     public var updatedAt: Date
     public var finishedAt: Date?

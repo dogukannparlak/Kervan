@@ -117,6 +117,7 @@ public struct YtDlpAdapter: Sendable {
             "--progress-template", "download:\(YtDlpProgressTracker.downloadPrefix)|%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s|%(progress.fragment_index)s|%(progress.fragment_count)s",
             "--progress-template", "postprocess:\(YtDlpProgressTracker.postprocessPrefix)|%(progress.status)s|%(progress.postprocessor)s",
             "--print", "video:\(YtDlpProgressTracker.infoPrefix)|%(format_id)s|%(filesize,filesize_approx)s",
+            "--print", "before_dl:\(YtDlpProgressTracker.pathPrefix)|%(filename)s",
             "--print", "after_move:\(YtDlpProgressTracker.filePrefix)|%(filepath)s",
         ]
         if let ffmpeg { args += ["--ffmpeg-location", ffmpeg.path] }
@@ -157,6 +158,7 @@ struct YtDlpProgressTracker {
     static let downloadPrefix = "KERVAN_DL"
     static let postprocessPrefix = "KERVAN_PP"
     static let filePrefix = "KERVAN_FILE"
+    static let pathPrefix = "KERVAN_PATH"
 
     private var videos = 0
     private var parts = 1
@@ -204,6 +206,9 @@ struct YtDlpProgressTracker {
 
         case Self.filePrefix:
             return .completed(URL(filePath: String(line.text.dropFirst(Self.filePrefix.count + 1))))
+
+        case Self.pathPrefix:
+            return .started(URL(filePath: String(line.text.dropFirst(Self.pathPrefix.count + 1))))
 
         default:
             return nil

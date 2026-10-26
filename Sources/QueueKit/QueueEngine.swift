@@ -69,6 +69,8 @@ public actor QueueEngine {
     /// Çalışan öğe durdurulunca varacağı durum (pause → paused, cancel → canceled, kapanış → queued).
     private var pendingStop: [Int64: ItemState] = [:]
     private var pendingRemove: Set<Int64> = []
+    /// Silinen ama süreci henüz durmamış öğelerin yarım dosyası: süreç durunca silinir.
+    private var purgeAfterStop: [Int64: String] = [:]
     private var lastHostStart: [String: ContinuousClock.Instant] = [:]
     private var lastPersist: [Int64: ContinuousClock.Instant] = [:]
     private var lastBroadcast: [Int64: ContinuousClock.Instant] = [:]
@@ -283,11 +285,13 @@ public actor QueueEngine {
             item.nextAttemptAt = nil
             save(item, force: true)
         case .cancel:
+            // Yarım dosyalar silinir (çalışıyorsa süreç durunca, `finish`'te).
             if running[id] != nil {
                 stopRunning(id, as: .canceled)
             } else {
                 try transition(&item, .canceled)
                 clearSpeed(&item)
+                purgePartials(&item)
                 save(item, force: true)
             }
         case .retry:
@@ -297,9 +301,13 @@ public actor QueueEngine {
             item.nextAttemptAt = nil
             save(item, force: true)
         case .remove:
+            // Bitmemiş öğe silinince yarım dosyaları da gider; bitmiş dosyaya dokunulmaz.
             if running[id] != nil {
                 pendingRemove.insert(id)
+                if let path = item.partialPath { purgeAfterStop[id] = path }
                 stopRunning(id, as: .canceled)
+            } else if item.state != .done {
+                purgePartials(&item)
             }
             removeNow(id)
         }
@@ -373,6 +381,9 @@ public actor QueueEngine {
             save(item, force: false)
         case .log(let line):
             logs?.append(id, line.text)
+        case .started(let file):
+            item.partialPath = file.path
+            save(item, force: true)
         case .completed(let file):
             Quarantine.mark(file)
             item.outputPath = file.path
@@ -383,12 +394,16 @@ public actor QueueEngine {
     private func finish(_ id: Int64, error: Error?) {
         running[id] = nil
         let stopState = pendingStop.removeValue(forKey: id)
-        if pendingRemove.remove(id) != nil { return }
+        if pendingRemove.remove(id) != nil {
+            if let path = purgeAfterStop.removeValue(forKey: id) { PartialFiles.remove(for: path) }
+            return
+        }
         guard var item = items[id] else { return }
         clearSpeed(&item)
 
         if let stopState {
             try? transition(&item, stopState)
+            if stopState == .canceled { purgePartials(&item) }
         } else if let error {
             item.attempt += 1
             // Kullanıcıya Türkçe ve önerili metin; ham hata log'da.
@@ -445,6 +460,17 @@ public actor QueueEngine {
         guard item.state.canTransition(to: next) else {
             throw QueueError.invalidTransition(item.id ?? 0, from: item.state, to: next)
         }
+    }
+
+    /// İptal edilen öğenin yarım dosyalarını siler ve log'a yazar.
+    private func purgePartials(_ item: inout DownloadItem) {
+        guard let path = item.partialPath else { return }
+        let removed = PartialFiles.remove(for: path)
+        if let id = item.id, !removed.isEmpty {
+            logs?.append(id, "yarım dosyalar silindi: \(removed.map(\.lastPathComponent).joined(separator: ", "))")
+        }
+        item.partialPath = nil
+        item.bytesDone = 0
     }
 
     private func clearSpeed(_ item: inout DownloadItem) {

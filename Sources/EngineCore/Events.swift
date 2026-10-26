@@ -71,6 +71,8 @@ public enum DownloadEvent: Sendable, Equatable {
     case progress(ProgressEvent)
     /// Ayrıştırılmayan araç çıktısı (log halkası için).
     case log(OutputLine)
+    /// Aracın yazacağı dosya (indirme başlarken); iptalde yarım dosyaları bulmak için.
+    case started(URL)
     case completed(URL)
 }
 

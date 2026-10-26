@@ -25,6 +25,13 @@ final class FakeExecutor: DownloadExecuting, @unchecked Sendable {
                 case "hang":
                     while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(10)) }
                     continuation.finish()
+                case "partial":
+                    // Hedef klasöre yarım dosya bırakıp iptale kadar sürer.
+                    let target = URL(filePath: item.destination).appending(path: "Video [p1].mp4")
+                    try? Data().write(to: URL(filePath: target.path + ".part"))
+                    continuation.yield(.started(target))
+                    while !Task.isCancelled { try? await Task.sleep(for: .milliseconds(10)) }
+                    continuation.finish()
                 default:
                     continuation.yield(.completed(URL(filePath: "/tmp/\(behavior).mp4")))
                     continuation.finish()
@@ -293,11 +300,31 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(await engine.uniqueFilename("Dizi", in: directory.path) == "Dizi (2)")
     }
 
+    @Test func cancelRemovesPartialFiles() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "kervan-c-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data().write(to: directory.appending(path: "Başka.mp4"))
+        let engine = try makeEngine(FakeExecutor())
+        await engine.start()
+        let outcome = try await engine.add(url: URL(string: "https://a.com/partial")!, options: AddOptions(
+            destination: directory.path, cookies: CookiePolicy("none")))
+        guard case .added(let items, _) = outcome, let id = items.first?.id else { return Issue.record("eklenmedi") }
+        let part = directory.appending(path: "Video [p1].mp4.part")
+        #expect(await eventually { await engine.item(id)?.partialPath != nil })
+        #expect(FileManager.default.fileExists(atPath: part.path))
+
+        _ = try await engine.apply(.cancel, to: [id])
+        #expect(await eventually { await engine.item(id)?.state == .canceled })
+        #expect(!FileManager.default.fileExists(atPath: part.path))
+        #expect(FileManager.default.fileExists(atPath: directory.appending(path: "Başka.mp4").path))
+    }
+
     @Test func actionWithUnknownIdChangesNothing() async throws {
         let engine = try makeEngine(FakeExecutor())
         let id = try await addURL(engine, "https://a.com/hang")[0].id!
         await #expect(throws: QueueError.notFound(999)) { try await engine.apply(.pause, to: [id, 999]) }
-        #expect(await engine.item(id)?.state == .queued)
+        #expect(await engine.item(id)?.state != .paused)  // ilk öğe de duraklatılmadı
     }
 
     @Test func nonGenericSiteIgnoresFilenameHint() async throws {

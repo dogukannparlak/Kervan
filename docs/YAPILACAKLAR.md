@@ -11,7 +11,7 @@
 
 ## Sonraki tur (1–5)
 
-- [ ] **1. İptal/silmede yarım dosyaları temizle**
+- [x] **1. İptal/silmede yarım dosyaları temizle** — iptalde hep silinir (`QueueKit/PartialFiles.swift`, yt-dlp `before_dl` yolu, aria2 `.aria2`); bitmiş dosyaya dokunulmaz
   - Sorun: iptal edilen öğe klasörde `.part`, `.ytdl`, `*.part-Frag*.part` bırakıyor (ör. "Joker…" indirmesi).
   - Nasıl: `QueueEngine.perform(.cancel/.remove)` sonrasında, öğenin `destination`'ında `filename`
     (ya da yt-dlp'nin çıktı adı) ile başlayan yarım dosyaları sil. Kesin adı bilmek için yt-dlp'ye
