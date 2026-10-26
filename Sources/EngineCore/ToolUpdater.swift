@@ -23,7 +23,10 @@ public struct ToolUpdater: Sendable {
     }
 
     static let releaseBase = URL(string: "https://github.com/yt-dlp/yt-dlp/releases/latest/download/")!
-    static let assetName = "yt-dlp_macos"
+    /// Tek dosyalı `yt-dlp_macos` her açılışta geçici klasöre açılır; launchd altında macOS her seferinde yeniden denetler
+    /// (`--version` bile ~11 sn). Klasör sürümü (`yt-dlp_macos.zip`) bir kez denetlenir, sonra ~0,3 sn'de açılır.
+    static let assetName = "yt-dlp_macos.zip"
+    static let directoryName = "yt-dlp-dir"
     /// yt-dlp imza anahtarının parmak izi (`Resources/yt-dlp-public.key`, github.com/yt-dlp/yt-dlp/blob/master/public.key).
     static let signingKey = "AC0CBBE6848D6A873464AF4E57CF65933B5A7581"
 
@@ -38,7 +41,9 @@ public struct ToolUpdater: Sendable {
             .appending(path: "Kervan/bin")
     }
 
-    var standalone: URL { binDirectory.appending(path: "yt-dlp") }
+    var standaloneDirectory: URL { binDirectory.appending(path: Self.directoryName) }
+    var standalone: URL { standaloneDirectory.appending(path: "yt-dlp") }
+    private var digestMarker: URL { standaloneDirectory.appending(path: ".sha256") }
 
     /// Bağlantıyı çözüp Homebrew'un Cellar'ında mı diye bakar.
     public static func method(for ytDlp: URL, brew: URL?) -> Method {
@@ -77,7 +82,8 @@ public struct ToolUpdater: Sendable {
         guard let expected = Self.checksum(for: Self.assetName, in: String(decoding: sums, as: UTF8.self)) else {
             throw EngineError.toolFailed(.ytDlp, status: -1, message: "SHA2-256SUMS içinde \(Self.assetName) yok")
         }
-        if FileManager.default.isExecutableFile(atPath: standalone.path), (try? Self.sha256(of: standalone)) == expected {
+        if FileManager.default.isExecutableFile(atPath: standalone.path),
+           (try? String(contentsOf: digestMarker, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) == expected {
             return signatureChecked  // zaten son sürüm
         }
         let (download, _) = try await URLSession.shared.download(from: Self.releaseBase.appending(path: Self.assetName))
@@ -87,13 +93,22 @@ public struct ToolUpdater: Sendable {
             throw EngineError.toolFailed(.ytDlp, status: -1, message: "indirilen yt-dlp'nin SHA-256'sı tutmuyor")
         }
         try FileManager.default.createDirectory(at: binDirectory, withIntermediateDirectories: true)
-        let staged = binDirectory.appending(path: "yt-dlp.new")
+        let staged = binDirectory.appending(path: "\(Self.directoryName).new")
         try? FileManager.default.removeItem(at: staged)
-        try FileManager.default.moveItem(at: download, to: staged)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged.path)
-        try await run(staged, ["--version"])  // çalışmayan dosyayı yerine koyma
-        _ = try? FileManager.default.removeItem(at: standalone)
-        try FileManager.default.moveItem(at: staged, to: standalone)
+        defer { try? FileManager.default.removeItem(at: staged) }
+        let unzip = try await runner.start(URL(filePath: "/usr/bin/ditto"), arguments: ["-x", "-k", download.path, staged.path],
+                                           environment: locator.environment).collect()
+        guard unzip.status == 0 else {
+            throw EngineError.toolFailed(.ytDlp, status: unzip.status, message: "yt-dlp arşivi açılamadı")
+        }
+        let extracted = staged.appending(path: "yt-dlp_macos")
+        try FileManager.default.moveItem(at: extracted, to: staged.appending(path: "yt-dlp"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: staged.appending(path: "yt-dlp").path)
+        // İlk çalıştırma macOS denetiminden geçer (~15 sn); bunu kullanıcı beklemeden burada, yerine koymadan önce yap.
+        try await run(staged.appending(path: "yt-dlp"), ["--version"])  // çalışmayan sürümü yerine koyma
+        try expected.write(to: staged.appending(path: ".sha256"), atomically: true, encoding: .utf8)
+        _ = try? FileManager.default.removeItem(at: standaloneDirectory)
+        try FileManager.default.moveItem(at: staged, to: standaloneDirectory)
         return signatureChecked
     }
 

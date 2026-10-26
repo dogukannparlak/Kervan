@@ -68,6 +68,13 @@ import Testing
         #expect(Tool.ytDlp.overrideVariable == "KERVAN_YT_DLP")
     }
 
+    @Test func directoryBuildOfYtDlpIsSearchedBeforeBin() {
+        let dirs = ToolLocator(environment: ["PATH": "/usr/bin"]).searchDirectories.map(\.path)
+        let onedir = dirs.firstIndex { $0.hasSuffix("Kervan/bin/yt-dlp-dir") }
+        let bin = dirs.firstIndex { $0.hasSuffix("Kervan/bin") }
+        #expect(onedir != nil && bin != nil && onedir! < bin!)
+    }
+
     @Test func environmentIncludesHomebrew() {
         let env = ToolLocator(environment: ["PATH": "/usr/bin"]).environment
         #expect(env["PATH"]?.contains("/opt/homebrew/bin") == true)

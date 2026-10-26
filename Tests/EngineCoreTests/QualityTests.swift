@@ -38,6 +38,28 @@ import Testing
         #expect(probe.qualities?.estimatedSize(for: "1080p") != nil)
     }
 
+    @Test func probeAndQualitiesShareOneExtraction() async throws {
+        let url = try #require(Bundle.module.url(forResource: "bbb-formats", withExtension: "json", subdirectory: "Fixtures"))
+        let json = try String(contentsOf: url, encoding: .utf8)
+        let runner = MockRunner(lines: [OutputLine(.stdout, json)], status: 0)
+        let adapter = YtDlpAdapter(executable: URL(filePath: "/bin/yt-dlp"), ffmpeg: nil, runner: runner, environment: [:])
+        let link = URL(string: "https://youtube.com/watch?v=aqz-KE-bpKQ")!
+        let list = try await adapter.qualities(link)
+        let probe = try await adapter.probe(link)
+        #expect(!list.options.isEmpty)
+        #expect(probe.qualities?.estimatedSize(for: "1080p") != nil)
+        #expect(runner.recorder.count == 1)
+    }
+
+    @Test func failedExtractionIsNotCached() async throws {
+        let runner = MockRunner(lines: [OutputLine(.stderr, "ERROR: boom")], status: 1)
+        let adapter = YtDlpAdapter(executable: URL(filePath: "/bin/yt-dlp"), ffmpeg: nil, runner: runner, environment: [:])
+        let link = URL(string: "https://youtube.com/watch?v=x")!
+        _ = try? await adapter.probe(link)
+        _ = try? await adapter.probe(link)
+        #expect(runner.recorder.count == 2)
+    }
+
     @Test func heightPresetsAreSynthesized() throws {
         let sd = try #require(try PresetStore.named("480p"))
         #expect(sd.format.contains("height<=480"))

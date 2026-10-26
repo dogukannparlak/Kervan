@@ -15,7 +15,7 @@ public enum Tool: String, CaseIterable, Sendable {
 }
 
 /// Dış araçları bulur ve onlara verilecek ortamı hazırlar.
-/// Sıra: `KERVAN_<ARAÇ>` → Application Support/Kervan/bin → Homebrew → PATH.
+/// Sıra: `KERVAN_<ARAÇ>` → Application Support/Kervan/bin/yt-dlp-dir → bin → Homebrew → PATH.
 public struct ToolLocator: Sendable {
     public let searchDirectories: [URL]
     private let baseEnvironment: [String: String]
@@ -24,6 +24,7 @@ public struct ToolLocator: Sendable {
         baseEnvironment = environment
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         var paths = [
+            appSupport.appending(path: "Kervan/bin/yt-dlp-dir").path,
             appSupport.appending(path: "Kervan/bin").path,
             "/opt/homebrew/bin",
             "/usr/local/bin",

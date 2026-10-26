@@ -113,15 +113,9 @@ enum QualityPlanner {
 extension YtDlpAdapter {
     /// Videonun indirilebilir kaliteleri (playlist ise boş liste).
     public func qualities(_ url: URL, cookiesFromBrowser: String? = nil, context: RequestContext = RequestContext()) async throws -> QualityList {
-        let args = ["-J", "--no-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser)
-            + Self.headerArguments(context) + ["--", url.absoluteString]
-        let process = try runner.start(executable, arguments: args, environment: environment)
-        let result = await process.collect()
-        guard result.status == 0 else {
-            throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
-        }
+        let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context)
         do {
-            let probe = try JSONDecoder().decode(FormatProbe.self, from: Data(result.stdout.joined().utf8))
+            let probe = try JSONDecoder().decode(FormatProbe.self, from: data)
             return QualityList(title: probe.title, options: probe.type == "playlist" ? [] : QualityPlanner.options(from: probe))
         } catch {
             throw EngineError.invalidProbeOutput(String(describing: error))

@@ -40,6 +40,8 @@ public struct YtDlpAdapter: Sendable {
     let ffmpeg: URL?
     let runner: any ProcessRunning
     let environment: [String: String]
+    /// Aynı linkin `-J` çıktısı kısa süre saklanır: kalite listesi, sınıflandırma ve ekleme tek çıkarma yapar.
+    let probeCache = ProbeCache()
 
     public init(executable: URL, ffmpeg: URL?, runner: any ProcessRunning = SystemProcessRunner(), environment: [String: String]) {
         self.executable = executable
@@ -50,15 +52,8 @@ public struct YtDlpAdapter: Sendable {
 
     /// `cookiesFromBrowser`: yt-dlp `--cookies-from-browser` değeri (ör. "brave").
     public func probe(_ url: URL, cookiesFromBrowser: String? = nil, context: RequestContext = RequestContext()) async throws -> ProbeResult {
-        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser)
-            + Self.headerArguments(context) + ["--", url.absoluteString]
-        let process = try runner.start(executable, arguments: args, environment: environment)
-        let result = await process.collect()
-        guard result.status == 0 else {
-            throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
-        }
+        let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context)
         do {
-            let data = Data(result.stdout.joined().utf8)
             var probe = try JSONDecoder().decode(ProbeResult.self, from: data)
             if !probe.isPlaylist, let formats = try? JSONDecoder().decode(FormatProbe.self, from: data) {
                 probe.qualities = QualityPlanner.options(from: formats)
@@ -66,6 +61,21 @@ public struct YtDlpAdapter: Sendable {
             return probe
         } catch {
             throw EngineError.invalidProbeOutput(String(describing: error))
+        }
+    }
+
+    /// `yt-dlp -J --flat-playlist` çıktısı; aynı (link, çerez, başlık) için 5 dakika önbellekten gelir.
+    func probeJSON(_ url: URL, cookiesFromBrowser: String?, context: RequestContext) async throws -> Data {
+        let args = ["-J", "--flat-playlist", "--no-warnings"] + Self.cookieArguments(cookiesFromBrowser)
+            + Self.headerArguments(context) + ["--", url.absoluteString]
+        let key = args.joined(separator: "\u{1F}")
+        return try await probeCache.value(for: key) {
+            let process = try runner.start(executable, arguments: args, environment: environment)
+            let result = await process.collect()
+            guard result.status == 0 else {
+                throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
+            }
+            return Data(result.stdout.joined().utf8)
         }
     }
 
@@ -232,5 +242,32 @@ struct YtDlpProgressTracker {
         if videos > 1 { labels.append("video \(videos)") }
         if parts > 1 { labels.append("parça \(min(finishedParts + 1, parts))/\(parts)") }
         return labels.isEmpty ? nil : labels.joined(separator: " · ")
+    }
+}
+
+
+/// Başarılı `-J` çıktılarını kısa süre tutar; aynı anda gelen istekler tek çıkarmayı bekler. Hata saklanmaz.
+final class ProbeCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var tasks: [String: (Task<Data, Error>, Date)] = [:]
+    private let ttl: TimeInterval
+
+    init(ttl: TimeInterval = 300) { self.ttl = ttl }
+
+    func value(for key: String, _ fetch: @escaping @Sendable () async throws -> Data) async throws -> Data {
+        let task: Task<Data, Error> = lock.withLock {
+            let now = Date()
+            tasks = tasks.filter { now.timeIntervalSince($0.value.1) < ttl }
+            if let hit = tasks[key] { return hit.0 }
+            let created = Task { try await fetch() }
+            tasks[key] = (created, now)
+            return created
+        }
+        do {
+            return try await task.value
+        } catch {
+            lock.withLock { tasks[key] = nil }
+            throw error
+        }
     }
 }

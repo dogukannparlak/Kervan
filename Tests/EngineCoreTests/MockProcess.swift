@@ -19,6 +19,7 @@ final class ArgumentRecorder: @unchecked Sendable {
 
     func record(_ arguments: [String]) { lock.withLock { calls.append(arguments) } }
     var last: [String]? { lock.withLock { calls.last } }
+    var count: Int { lock.withLock { calls.count } }
 }
 
 struct MockProcess: RunningProcess {
