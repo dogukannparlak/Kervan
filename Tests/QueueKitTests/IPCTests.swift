@@ -1,3 +1,4 @@
+import Darwin
 import EngineCore
 import Foundation
 @testable import KervanIPC
@@ -45,6 +46,19 @@ import Testing
         // FakeExecutor'ün dosyası diskte yok: reveal açık hata vermeli, Finder açılmamalı.
         let reveal = try client.request(Request(cmd: .reveal, ids: [id]))
         #expect(!reveal.ok && reveal.error?.contains("dosya yok") == true)
+    }
+
+    @Test func endlessLineClosesConnection() throws {
+        let (reader, writer) = try LineConnection.pair()
+        Thread.detachNewThread {
+            let chunk = [UInt8](repeating: 0x41, count: 1024 * 1024)
+            for _ in 0..<(LineConnection.maxLineBytes / chunk.count + 2) {
+                guard chunk.withUnsafeBytes({ Darwin.write(writer.fd, $0.baseAddress!, $0.count) }) > 0 else { return }
+            }
+            writer.close()
+        }
+        #expect(reader.readLine() == nil)
+        reader.close()
     }
 
     @Test func socketPathLengthIsChecked() {

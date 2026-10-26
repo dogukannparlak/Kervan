@@ -18,6 +18,9 @@ public enum SocketError: Error, CustomStringConvertible {
 /// Satır başına bir JSON mesajı taşıyan bloklayan soket bağlantısı.
 /// Okuma tek iş parçacığından yapılır; yazma kilitlidir (abonelik + yanıt aynı anda yazabilir).
 public final class LineConnection: @unchecked Sendable {
+    /// Bir satırın üst sınırı: satır sonu göndermeyen bir istemci belleği doldurmasın (büyük `list` yanıtı sığar).
+    static let maxLineBytes = 32 * 1024 * 1024
+
     let fd: Int32
     private var buffer = Data()
     private let writeLock = NSLock()
@@ -52,16 +55,23 @@ public final class LineConnection: @unchecked Sendable {
     }
 
     func readLine() -> Data? {
+        // Yalnız yeni gelen kısımda satır sonu aranır; uzun satırda tamponu baştan taramamak için.
+        var searchFrom = buffer.startIndex
         while true {
-            if let index = buffer.firstIndex(of: 0x0A) {
+            if let index = buffer[searchFrom...].firstIndex(of: 0x0A) {
                 let line = buffer[buffer.startIndex..<index]
                 buffer.removeSubrange(buffer.startIndex...index)
                 return Data(line)
             }
+            searchFrom = buffer.endIndex
             var chunk = [UInt8](repeating: 0, count: 65536)
             let count = Darwin.read(fd, &chunk, chunk.count)
             if count < 0 && errno == EINTR { continue }
             guard count > 0 else { return nil }
+            if buffer.count + count > Self.maxLineBytes, !chunk[0..<count].contains(0x0A) {
+                buffer.removeAll()
+                return nil
+            }
             buffer.append(contentsOf: chunk[0..<count])
         }
     }
@@ -115,6 +125,9 @@ enum UnixSocket {
         unlink(path)
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw SocketError.system("socket", errno) }
+        // Soket dosyası baştan 0600 doğsun: bind ile chmod arasında başka kullanıcıya açık kalmasın.
+        let previousMask = umask(0o077)
+        defer { umask(previousMask) }
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))

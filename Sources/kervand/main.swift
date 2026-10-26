@@ -18,6 +18,8 @@ func log(_ message: String) {
 
 do {
     try FileManager.default.createDirectory(at: paths.home, withIntermediateDirectories: true)
+    // Kuyruk, loglar ve soket yalnız kullanıcıya açık (KERVAN_HOME başka yerdeyse de).
+    try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: paths.home.path)
     if let version = IPCClient.ping(paths: paths) {
         log("kervand zaten çalışıyor (\(version)); çıkılıyor.")
         exit(0)
