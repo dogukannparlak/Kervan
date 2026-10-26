@@ -1,7 +1,7 @@
 import { formatBytes, mediaLabel, shortUrl } from './detect.js';
 
 const STATE_LABELS = {
-  queued: 'sırada', downloading: 'iniyor', postprocessing: 'işleniyor', paused: 'duraklatıldı',
+  queued: 'sırada', downloading: 'iniyor', postprocessing: 'işleniyor', paused: 'duraklatıldı', waiting: 'beklemede',
   failed: 'hata', canceled: 'iptal', done: 'bitti',
 };
 
@@ -102,6 +102,7 @@ const ACTIONS = {
   downloading: [['pause', 'Durdur'], ['cancel', 'İptal', true]],
   postprocessing: [['cancel', 'İptal', true]],
   paused: [['resume', 'Devam'], ['cancel', 'İptal', true]],
+  waiting: [['resume', 'Başlat'], ['cancel', 'İptal', true]],
   failed: [['retry', 'Yeniden'], ['remove', 'Sil', true]],
   canceled: [['retry', 'Yeniden'], ['remove', 'Sil', true]],
   done: [['reveal', 'Klasörde göster'], ['remove', 'Listeden sil']],

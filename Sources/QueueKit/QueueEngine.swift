@@ -166,7 +166,7 @@ public actor QueueEngine {
             : options.destination
         var base = DownloadItem(url: url.absoluteString, kind: .video, host: DownloadItem.host(of: url), presetId: options.presetId,
                                 destination: destination, cookiesBrowser: resolved.cookiesBrowser, maxAttempts: config.maxAttempts)
-        if options.startPaused { base.state = .paused }
+        if options.startPaused { base.state = .waiting }
         base.referer = options.context.referer
         base.userAgent = options.context.userAgent
         base.subtitles = options.subtitles
@@ -274,6 +274,27 @@ public actor QueueEngine {
     /// Aktif (inen/işlenen) öğe var mı? Güncelleyici bunu bekler.
     public var hasActiveDownloads: Bool { items.values.contains { $0.kind != .group && $0.state.isActive } }
 
+    /// Beklemedeki öğelerin kalitesini (preset) değiştirir; başka durumdaki öğeye dokunmaz.
+    /// Playlist grubu verilirse çocuklarına uygulanır. Değişen öğeleri döner.
+    public func setPreset(_ ids: [Int64], preset: String, sizeHint: Int64? = nil) throws -> [DownloadItem] {
+        guard try PresetStore.named(preset) != nil else { throw QueueError.unknownPreset(preset) }
+        var targets = Set<Int64>()
+        for id in ids {
+            guard let item = items[id] else { throw QueueError.notFound(id) }
+            if item.kind == .group { items.values.filter { $0.parentId == id }.compactMap(\.id).forEach { targets.insert($0) } }
+            else { targets.insert(id) }
+        }
+        var changed: [DownloadItem] = []
+        for id in targets.sorted() {
+            guard var item = items[id], item.state == .waiting else { continue }
+            item.presetId = preset
+            item.bytesTotalEstimate = sizeHint
+            save(item, force: true)
+            changed.append(item)
+        }
+        return changed
+    }
+
     /// Bir linkin kalite seçenekleri (kuyruğa bir şey eklemez).
     public nonisolated func qualities(url: URL, cookies: CookiePolicy, context: RequestContext) async throws -> QualityList {
         try await resolver.qualities(url, cookies: cookies, context: context)
@@ -315,8 +336,8 @@ public actor QueueEngine {
                 save(item, force: true)
             }
         case .resume:
-            // Yalnız duraklatılanlar; hatalı/iptal edilmiş öğe için `retry` kullanılır.
-            guard item.state == .paused else { throw QueueError.invalidTransition(id, from: item.state, to: .queued) }
+            // Yalnız duraklatılan ve beklemedekiler; hatalı/iptal edilmiş öğe için `retry` kullanılır.
+            guard item.state == .paused || item.state == .waiting else { throw QueueError.invalidTransition(id, from: item.state, to: .queued) }
             try transition(&item, .queued)
             item.nextAttemptAt = nil
             save(item, force: true)
@@ -550,6 +571,7 @@ public actor QueueEngine {
             group.state = if states.contains(where: \.isActive) { .downloading }
                 else if states.contains(.queued) { .queued }
                 else if states.contains(.paused) { .paused }
+                else if states.contains(.waiting) { .waiting }
                 else if states.contains(.failed) { .failed }
                 else if states == [.canceled] { .canceled }
                 else { .done }

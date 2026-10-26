@@ -213,7 +213,7 @@ struct QueueWatcher {
         func finished() -> Bool {
             guard let ids else { return false }
             return ids.allSatisfy { id in items[id].map { $0.kind == .group || $0.state.isFinished } ?? true }
-                && items.values.filter { $0.kind != .group }.allSatisfy { $0.state.isFinished || $0.state == .paused }
+                && items.values.filter { $0.kind != .group }.allSatisfy { $0.state.isFinished || $0.state == .paused || $0.state == .waiting }
         }
 
         draw(force: true)

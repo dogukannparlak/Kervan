@@ -287,11 +287,13 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
             return
         }
         let children = items.filter { $0.kind == .video }
-        #expect(children.count == 2 && children.allSatisfy { $0.state == .paused })
+        #expect(children.count == 2 && children.allSatisfy { $0.state == .waiting })
         try await Task.sleep(for: .milliseconds(150))
         #expect(executor.runs("https://e.com/v1/ok") == 0)
 
         let ids = children.compactMap(\.id)
+        let changed = try await engine.setPreset([items[0].id!], preset: "720p")  // grup: çocuklara uygulanır
+        #expect(changed.count == 2 && changed.allSatisfy { $0.presetId == "720p" })
         _ = try await engine.apply(.resume, to: ids)
         #expect(await eventually { await engine.item(ids[0])?.state == .done })
     }

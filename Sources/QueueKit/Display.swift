@@ -28,6 +28,7 @@ extension ItemState {
         case .downloading: "iniyor"
         case .postprocessing: "işleniyor"
         case .paused: "duraklatıldı"
+        case .waiting: "beklemede"
         case .failed: "hata"
         case .canceled: "iptal"
         case .done: "bitti"

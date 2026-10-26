@@ -10,7 +10,8 @@ public enum ItemKind: String, Codable, Sendable, DatabaseValueConvertible {
 }
 
 public enum ItemState: String, Codable, Sendable, CaseIterable, DatabaseValueConvertible {
-    case queued, downloading, postprocessing, paused, failed, canceled, done
+    /// `waiting`: kullanıcı "beklemede ekle" dedi; ayarları seçilip başlatılana kadar inmez (duraklatılmış değil).
+    case queued, downloading, postprocessing, paused, waiting, failed, canceled, done
 
     /// İzinli geçişler. `done` terminaldir; `canceled` yalnız elle yeniden denemeyle döner.
     public func canTransition(to next: ItemState) -> Bool {
@@ -21,6 +22,7 @@ public enum ItemState: String, Codable, Sendable, CaseIterable, DatabaseValueCon
         case (.postprocessing, .downloading), (.postprocessing, .done), (.postprocessing, .failed),
              (.postprocessing, .queued), (.postprocessing, .paused), (.postprocessing, .canceled): true
         case (.paused, .queued), (.paused, .canceled): true
+        case (.waiting, .queued), (.waiting, .canceled): true
         case (.failed, .queued), (.failed, .canceled): true
         case (.canceled, .queued): true
         default: false

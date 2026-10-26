@@ -135,7 +135,7 @@ final class QueueStore {
 
     /// Duraklatılmış (beklemede) indirilebilir öğeler; gruplar sayılmaz.
     var waitingIDs: [Int64] {
-        items.values.filter { $0.kind != .group && $0.state == .paused }.compactMap(\.id)
+        items.values.filter { $0.kind != .group && $0.state == .waiting }.compactMap(\.id)
     }
 
     var waitingCount: Int { waitingIDs.count }
@@ -212,7 +212,7 @@ extension DownloadItem {
         switch state {
         case .queued, .downloading: [.pause, .cancel]
         case .postprocessing: [.cancel]
-        case .paused: [.resume, .cancel]
+        case .paused, .waiting: [.resume, .cancel]
         case .failed, .canceled: [.retry, .remove]
         case .done: [.reveal, .remove]
         }

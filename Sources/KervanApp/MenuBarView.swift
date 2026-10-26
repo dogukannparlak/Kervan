@@ -93,7 +93,7 @@ struct MenuRow: View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle).lineLimit(1).font(.callout)
-                if item.state.isActive || item.state == .queued || item.state == .paused {
+                if item.state.isActive || item.state == .queued || item.state == .paused || item.state == .waiting {
                     ProgressView(value: item.fraction ?? 0).controlSize(.mini)
                 }
                 Text([item.state.label, item.state == .queued ? item.sizeText : item.fraction.map { "\(Int($0 * 100))%" } ?? "",

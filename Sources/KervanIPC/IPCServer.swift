@@ -108,6 +108,9 @@ public final class IPCServer: Sendable {
                 guard let ids = request.ids, !ids.isEmpty else { return .failure("Öğe numarası gerekli.") }
                 let action = QueueAction(rawValue: request.cmd.rawValue)!
                 return Response(ok: true, items: try await engine.apply(action, to: ids))
+            case .setPreset:
+                guard let ids = request.ids, !ids.isEmpty, let preset = request.preset else { return .failure("Öğe numarası ve kalite gerekli.") }
+                return Response(ok: true, items: try await engine.setPreset(ids, preset: preset, sizeHint: request.size.flatMap { $0 > 0 ? $0 : nil }))
             case .reveal:
                 guard let id = request.ids?.first else { return .failure("Öğe numarası gerekli.") }
                 guard let item = await engine.item(id) else { throw QueueError.notFound(id) }

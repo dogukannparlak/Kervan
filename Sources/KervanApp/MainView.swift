@@ -15,7 +15,7 @@ enum QueueFilter: String, CaseIterable, Identifiable {
         switch self {
         case .all: true
         case .active: !item.state.isFinished
-        case .waiting: item.state == .paused
+        case .waiting: item.state == .waiting
         case .done: item.state == .done
         case .failed: item.state == .failed || item.state == .canceled
         }
@@ -41,6 +41,7 @@ struct MainView: View {
     @State private var adding = false
     @State private var addingURL = ""
     @State private var pendingAction: PendingAction?
+    @State private var configuring: [DownloadItem] = []
 
     /// Playlist çocukları grubun hemen altında, girintili.
     private var rows: [DownloadItem] {
@@ -97,6 +98,9 @@ struct MainView: View {
                 if targets.count == 1, let item = targets.first, item.state == .done {
                     Button("Aç") { store.open(item) }
                 }
+                if !targets.isEmpty, targets.allSatisfy({ $0.state == .waiting }) {
+                    Button("Kalite / ayarlar…") { configuring = targets }
+                }
                 ForEach(commonActions(targets), id: \.self) { action in
                     Button(action.title) { run(action, on: targets) }
                 }
@@ -108,7 +112,12 @@ struct MainView: View {
                     }
                 }
             } primaryAction: { ids in
-                if let item = items(for: ids).first { store.open(item) }
+                let targets = items(for: ids)
+                if !targets.isEmpty, targets.allSatisfy({ $0.state == .waiting }) {
+                    configuring = targets  // çift tıklama: beklemedeki öğenin ayarları
+                } else if let item = targets.first {
+                    store.open(item)
+                }
             }
             .overlay {
                 if rows.isEmpty {
@@ -145,6 +154,14 @@ struct MainView: View {
                     .help("Bitmiş ve iptal edilmiş öğeleri listeden sil (dosyalar kalır)")
                     .disabled(!store.items.values.contains { $0.kind != .group && ($0.state == .done || $0.state == .canceled) })
             }
+            if selectedItems.contains(where: { $0.state == .waiting }) {
+                ToolbarItem {
+                    Button { configuring = selectedItems.filter { $0.state == .waiting } } label: {
+                        Label("Kalite / ayarlar", systemImage: "slider.horizontal.3")
+                    }
+                    .help("Seçili beklemedeki öğelerin kalitesini seç")
+                }
+            }
             if store.waitingCount > 0 {
                 ToolbarItem {
                     Button { Task { await store.resumeWaiting() } } label: {
@@ -165,6 +182,9 @@ struct MainView: View {
                 }
                 .pickerStyle(.segmented)
             }
+        }
+        .sheet(isPresented: Binding(get: { !configuring.isEmpty }, set: { if !$0 { configuring = [] } })) {
+            WaitingSettingsView(targets: configuring).environment(store)
         }
         .sheet(isPresented: $adding) { AddView(initialURL: addingURL).environment(store) }
         .confirmationDialog(pendingAction?.title ?? "", isPresented: Binding(
@@ -219,7 +239,7 @@ struct MainView: View {
     private func detail(for item: DownloadItem) -> String? {
         if item.state == .failed { return item.lastError?.replacingOccurrences(of: "\n", with: " ") }
         var parts = [item.host]
-        if item.kind == .video, item.presetId != "1080p" { parts.append(item.presetId) }
+        if item.kind == .video, item.presetId != "1080p" || item.state == .waiting { parts.append(item.presetId) }
         if let message = item.message, item.state != .done { parts.append(message) }
         return parts.joined(separator: " · ")
     }

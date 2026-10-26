@@ -52,6 +52,8 @@ public struct Request: Codable, Sendable {
         case update
         /// Bitmiş ve iptal edilmiş öğeleri listeden sil (dosyalar kalır).
         case clean
+        /// Beklemedeki öğelerin kalitesini değiştirir (`ids`, `preset`, isteğe `size`).
+        case setPreset
     }
 
     public var cmd: Command
