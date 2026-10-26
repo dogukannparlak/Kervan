@@ -24,6 +24,10 @@ import Testing
         #expect(list.items?.first?.state == .done)
         #expect(list.items?.first?.outputPath == "/tmp/ok.mp4")
 
+        // Negatif satır sayısı servisi çökertmemeli.
+        let log = try client.request(Request(cmd: .log, ids: [id], lines: -5))
+        #expect(log.ok && log.log == [])
+
         let bad = try client.request(Request(cmd: .pause, ids: [999]))
         #expect(!bad.ok && bad.error == "#999 bulunamadı.")
 

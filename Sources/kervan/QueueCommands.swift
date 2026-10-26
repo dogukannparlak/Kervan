@@ -152,6 +152,10 @@ struct Log: ParsableCommand {
     @Option(name: [.customShort("n"), .long], help: "Son kaç satır.")
     var lines = 50
 
+    func validate() throws {
+        guard lines > 0 else { throw ValidationError("-n en az 1 olmalı.") }
+    }
+
     func run() throws {
         let item = try send(Request(cmd: .list)).items?.first { $0.id == id }
         if let error = item?.lastError { print("son hata: \(error)\n") }

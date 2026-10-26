@@ -65,22 +65,27 @@ public enum QueueError: Error, Equatable, CustomStringConvertible {
 /// "1,3,5-7" → [1, 3, 5, 6, 7]; "all" → hepsi. 1 tabanlı, tekrarsız, sıralı.
 public enum PlaylistSelection {
     public static func parse(_ text: String, count: Int) throws -> [Int] {
-        if text.lowercased() == "all" { return Array(1...max(count, 1)).filter { $0 <= count } }
+        if text.lowercased() == "all" { return count > 0 ? Array(1...count) : [] }
+        guard count > 0 else { throw QueueError.invalidSelection(text) }
+        // Sınırlar kümeye eklemeden önce denetlenir: "1-2000000000" belleği doldurmasın.
+        let valid = 1...count
         var result = Set<Int>()
         for part in text.split(separator: ",").map({ $0.trimmingCharacters(in: .whitespaces) }) {
             let bounds = part.split(separator: "-", omittingEmptySubsequences: false).map { Int($0) }
             switch bounds.count {
             case 1:
-                guard let index = bounds[0] else { throw QueueError.invalidSelection(text) }
+                guard let index = bounds[0], valid.contains(index) else { throw QueueError.invalidSelection(text) }
                 result.insert(index)
             case 2:
-                guard let low = bounds[0], let high = bounds[1], low <= high else { throw QueueError.invalidSelection(text) }
+                guard let low = bounds[0], let high = bounds[1], low <= high, valid.contains(low), valid.contains(high) else {
+                    throw QueueError.invalidSelection(text)
+                }
                 result.formUnion(low...high)
             default:
                 throw QueueError.invalidSelection(text)
             }
         }
-        guard !result.isEmpty, result.allSatisfy({ (1...count).contains($0) }) else { throw QueueError.invalidSelection(text) }
+        guard !result.isEmpty else { throw QueueError.invalidSelection(text) }
         return result.sorted()
     }
 }

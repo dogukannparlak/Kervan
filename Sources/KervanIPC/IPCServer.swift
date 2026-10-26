@@ -99,7 +99,9 @@ public final class IPCServer: Sendable {
                 return Response(ok: true, items: await engine.list())
             case .log:
                 guard let id = request.ids?.first else { return .failure("Öğe numarası gerekli.") }
-                return Response(ok: true, log: try await engine.log(id, lines: request.lines ?? 50))
+                // Negatif değer `suffix`'i çökertir; aşırı büyüğü de anlamsız.
+                let lines = min(max(request.lines ?? 50, 0), 10_000)
+                return Response(ok: true, log: try await engine.log(id, lines: lines))
             case .pause, .resume, .cancel, .retry, .remove:
                 guard let ids = request.ids, !ids.isEmpty else { return .failure("Öğe numarası gerekli.") }
                 let action = QueueAction(rawValue: request.cmd.rawValue)!

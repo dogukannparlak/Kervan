@@ -107,7 +107,7 @@ public final class LogStore: Sendable {
     }
 
     func tail(_ id: Int64, lines: Int) -> [String] {
-        guard let text = try? String(contentsOf: directory.appending(path: "\(id).log"), encoding: .utf8) else { return [] }
+        guard lines > 0, let text = try? String(contentsOf: directory.appending(path: "\(id).log"), encoding: .utf8) else { return [] }
         return text.split(separator: "\n").suffix(lines).map(String.init)
     }
 

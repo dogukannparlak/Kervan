@@ -102,6 +102,11 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(throws: QueueError.self) { try PlaylistSelection.parse("4", count: 3) }
         #expect(throws: QueueError.self) { try PlaylistSelection.parse("3-1", count: 3) }
         #expect(throws: QueueError.self) { try PlaylistSelection.parse("a", count: 3) }
+        // Boş liste ve dev aralık servisi çökertmemeli.
+        #expect(throws: QueueError.self) { try PlaylistSelection.parse("1", count: 0) }
+        #expect(try PlaylistSelection.parse("all", count: 0) == [])
+        #expect(throws: QueueError.self) { try PlaylistSelection.parse("1-2000000000", count: 3) }
+        #expect(throws: QueueError.self) { try PlaylistSelection.parse("0-2", count: 3) }
     }
 }
 
