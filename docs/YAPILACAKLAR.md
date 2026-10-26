@@ -27,7 +27,7 @@
   - Log temizliği: servis açılışında 30 günden eski `logs/<id>.log` ve kuyrukta olmayan logları siler;
     `kervand.log` 5 MB'ı geçince döndürülür.
 
-- [ ] **3. Boyut ve yüzde gösterimi**
+- [x] **3. Boyut ve yüzde gösterimi** — sıradaki öğede tahmini boyut (istemcinin seçtiği kalite ya da probe'daki formatlardan), inerken yüzde; disk uyarısı yok (Doğukan teyit etti)
   - Doğukan: "sadece videonun boyutunu yazsın ve inerken yüzdede göstersin" (disk alanı uyarısı istenmedi;
     bu yorum Doğukan'la teyit edilecek).
   - Nasıl: `add` sırasında kalite listesindeki tahmini boyut (`QualityPlanner`) öğeye `bytesTotalEstimate`

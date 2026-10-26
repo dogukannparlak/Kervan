@@ -103,6 +103,7 @@ struct AddView: View {
         var request = Request(cmd: .add, url: url.trimmingCharacters(in: .whitespaces), preset: preset, dir: folder,
                               cookies: "auto", items: entries.isEmpty ? nil : selection, subtitles: subtitles)
         request.force = force
+        request.size = qualities.first { $0.preset == preset }?.size
         let response = await store.send(request)
         duplicateOf = response.duplicateOf
         if !response.ok {

@@ -135,6 +135,7 @@ export function formatBytes(bytes) {
 export function qualityRows(options = []) {
   return options.map((option) => ({
     preset: option.preset,
+    size: option.size || undefined,
     label: { audio: 'Yalnız ses (m4a)', mp3: 'MP3 (kapak ve etiketli)' }[option.preset] || option.label,
     detail: option.size ? `~${formatBytes(option.size)}` : '',
   }));
@@ -175,7 +176,7 @@ export function buildCandidates({ media = [], srcUrl, frameUrl, tabUrl, tabTitle
       kind: item.kind === 'file' ? 'file' : 'stream',
       label: `${mediaLabel(item)}${size}`,
       detail: shortUrl(item.url),
-      request: { ...base, url: item.url },
+      request: { ...base, url: item.url, size: item.size },
     });
   }
   const page = isHttp(frameUrl) ? frameUrl : tabUrl;

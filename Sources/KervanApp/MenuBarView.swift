@@ -85,7 +85,8 @@ struct MenuRow: View {
                 if item.state.isActive || item.state == .queued || item.state == .paused {
                     ProgressView(value: item.fraction ?? 0).controlSize(.mini)
                 }
-                Text([item.state.label, item.fraction.map { "\(Int($0 * 100))%" } ?? "", item.speedText, item.etaText]
+                Text([item.state.label, item.state == .queued ? item.sizeText : item.fraction.map { "\(Int($0 * 100))%" } ?? "",
+                      item.speedText, item.etaText]
                     .filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption2).foregroundStyle(item.state == .failed ? .red : .secondary).monospacedDigit()
             }

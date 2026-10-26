@@ -25,6 +25,8 @@ public struct AddOptions: Sendable {
     public var categorize: Bool
     /// true ise aynı link/video listede olsa da eklenir.
     public var force = false
+    /// İstemcinin seçtiği kalitenin ya da yakalanan dosyanın yaklaşık boyutu (bayt).
+    public var sizeHint: Int64?
 
     public init(presetId: String = "1080p", destination: String, cookies: CookiePolicy = CookiePolicy("auto"),
                 selection: String? = nil, context: RequestContext = RequestContext(), subtitles: String? = nil,
@@ -166,6 +168,8 @@ public actor QueueEngine {
         base.userAgent = options.context.userAgent
         base.subtitles = options.subtitles
         base.filename = options.context.filename.map { uniqueFilename($0, in: destination) }
+        // Boyut indirme başlamadan görünsün: istemcinin bildirdiği ya da probe'daki kaliteden tahmin.
+        base.bytesTotalEstimate = options.sizeHint
         var added: [DownloadItem]
         switch resolved.kind {
         case .http:
@@ -174,6 +178,7 @@ public actor QueueEngine {
             added = try store.insert([base])
         case .video(let info):
             if let extractor = info.extractor, let videoId = info.id { base.mediaId = "\(extractor):\(videoId)" }
+            if base.bytesTotalEstimate == nil { base.bytesTotalEstimate = info.qualities?.estimatedSize(for: options.presetId) }
             // Aynı video başka bir linkle (kısa link, farklı parametre) eklenmiş olabilir.
             if !options.force, let existing = duplicate(url: nil, mediaId: base.mediaId) { throw existing }
             // Genel çıkarıcı (m3u8, düz mp4) başlık olarak "master" gibi dosya adı verir; sayfa başlığı daha iyi.
@@ -183,6 +188,7 @@ public actor QueueEngine {
         case .playlist(let info):
             let entries = info.entries ?? []
             base.filename = nil
+            base.bytesTotalEstimate = nil  // listenin boyutu değil; her video kendi boyutunu inerken alır
             guard let selection = options.selection else {
                 return .needsSelection(title: info.title, entries: entries, notes: resolved.notes)
             }

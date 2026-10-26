@@ -27,6 +27,18 @@ public struct QualityList: Codable, Sendable, Equatable {
     }
 }
 
+extension Array where Element == QualityOption {
+    /// Preset'in ineceği kalitenin yaklaşık boyutu: aynı adlı seçenek; yoksa "best" için en yükseği,
+    /// "720p" gibi yükseklik için o yüksekliği geçmeyen en yükseği.
+    public func estimatedSize(for presetId: String) -> Int64? {
+        if let exact = first(where: { $0.preset == presetId }) { return exact.size }
+        let videos = filter { $0.height != nil }.sorted { ($0.height ?? 0) > ($1.height ?? 0) }
+        if presetId == "best" { return videos.first?.size }
+        guard presetId.hasSuffix("p"), let limit = Int(presetId.dropLast()) else { return nil }
+        return videos.first { ($0.height ?? 0) <= limit }?.size
+    }
+}
+
 /// `yt-dlp -J` çıktısının kalite için gereken kısmı.
 struct FormatProbe: Decodable {
     struct Format: Decodable {

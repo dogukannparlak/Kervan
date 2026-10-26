@@ -36,7 +36,7 @@ for (const media of state.media.slice().reverse()) {
   info.append(name, meta);
   const button = document.createElement('button');
   button.textContent = 'İndir';
-  button.addEventListener('click', () => add({ url: media.url, pageUrl, title }, button));
+  button.addEventListener('click', () => add({ url: media.url, pageUrl, title, size: media.size }, button));
   item.append(info, button);
   $('media').append(item);
 }
@@ -189,7 +189,9 @@ function queueRow(entry) {
   const total = entry.bytesTotal || entry.bytesTotalEstimate;
   const fraction = total ? Math.min(1, entry.bytesDone / total) : entry.state === 'done' ? 1 : 0;
   const parts = [STATE_LABELS[entry.state] || entry.state];
-  if (total) parts.push(`%${Math.round(fraction * 100)}`);
+  // Sıradayken boyut, inerken yüzde.
+  if (total && entry.state === 'queued') parts.push(`${entry.bytesTotal ? '' : '~'}${formatBytes(total)}`);
+  else if (total) parts.push(`%${Math.round(fraction * 100)}`);
   if (entry.speed && entry.state === 'downloading') parts.push(`${formatBytes(Math.round(entry.speed))}/s`);
   if (entry.state === 'failed' && entry.lastError) parts.push(entry.lastError);
   meta.textContent = parts.join(' · ');

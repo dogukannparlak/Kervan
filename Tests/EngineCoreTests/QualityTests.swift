@@ -19,6 +19,25 @@ import Testing
         #expect(abs(size - 268_281_336) / 268_281_336 < 0.02)
     }
 
+    @Test func presetSizeEstimate() throws {
+        let options = QualityPlanner.options(from: try bigBuckBunny())
+        let hd = try #require(options.first { $0.preset == "1080p" }?.size)
+        #expect(options.estimatedSize(for: "1080p") == hd)
+        #expect(options.estimatedSize(for: "best") == options.first?.size)
+        #expect(options.estimatedSize(for: "1100p") == hd)  // tam yoksa altındaki en yüksek
+        #expect(options.estimatedSize(for: "mp3") != nil)
+        #expect(options.estimatedSize(for: "50p") == nil)
+    }
+
+    @Test func probeCarriesQualities() async throws {
+        let url = try #require(Bundle.module.url(forResource: "bbb-formats", withExtension: "json", subdirectory: "Fixtures"))
+        let json = try String(contentsOf: url, encoding: .utf8)
+        let adapter = YtDlpAdapter(executable: URL(filePath: "/bin/yt-dlp"), ffmpeg: nil,
+                                   runner: MockRunner(lines: [OutputLine(.stdout, json)], status: 0), environment: [:])
+        let probe = try await adapter.probe(URL(string: "https://youtube.com/watch?v=aqz-KE-bpKQ")!)
+        #expect(probe.qualities?.estimatedSize(for: "1080p") != nil)
+    }
+
     @Test func heightPresetsAreSynthesized() throws {
         let sd = try #require(try PresetStore.named("480p"))
         #expect(sd.format.contains("height<=480"))

@@ -75,6 +75,8 @@ public struct Request: Codable, Sendable {
     public var fromExtension: Bool?
     /// Aynı link/video listede olsa da ekle.
     public var force: Bool?
+    /// Seçilen kalitenin ya da dosyanın yaklaşık boyutu (bayt); sıradaki öğede boyut gösterilir.
+    public var size: Int64?
 
     public init(cmd: Command, url: String? = nil, preset: String? = nil, dir: String? = nil, cookies: String? = nil,
                 items: String? = nil, ids: [Int64]? = nil, lines: Int? = nil, referer: String? = nil,

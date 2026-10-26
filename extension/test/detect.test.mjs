@@ -100,8 +100,8 @@ test('menü seçenek türleri ve kalite satırları', async () => {
     { preset: '1080p', label: '1080p60', size: 267_900_000 },
     { preset: 'audio', label: 'Yalnız ses', size: null },
   ]), [
-    { preset: '1080p', label: '1080p60', detail: '~267.9 MB' },
-    { preset: 'audio', label: 'Yalnız ses (m4a)', detail: '' },
+    { preset: '1080p', size: 267_900_000, label: '1080p60', detail: '~267.9 MB' },
+    { preset: 'audio', size: undefined, label: 'Yalnız ses (m4a)', detail: '' },
   ]);
 });
 

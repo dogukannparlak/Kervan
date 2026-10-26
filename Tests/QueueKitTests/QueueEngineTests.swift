@@ -340,6 +340,17 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(await engine.list().map(\.id) == [waiting])
     }
 
+    @Test func queuedItemShowsSizeHint() async throws {
+        let engine = try makeEngine(FakeExecutor(), config: testConfig(parallel: 0))  // hiçbiri başlamasın
+        var options = AddOptions(destination: "/tmp/kervan-test", cookies: CookiePolicy("none"))
+        options.sizeHint = 268_000_000
+        guard case .added(let items, _) = try await engine.add(url: URL(string: "https://a.com/ok")!, options: options) else {
+            return Issue.record("eklenmedi")
+        }
+        #expect(items.first?.state == .queued)
+        #expect(items.first?.bytesTotalEstimate == 268_000_000)
+    }
+
     @Test func actionWithUnknownIdChangesNothing() async throws {
         let engine = try makeEngine(FakeExecutor())
         let id = try await addURL(engine, "https://a.com/hang")[0].id!

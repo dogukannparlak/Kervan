@@ -22,6 +22,9 @@ public struct ProbeResult: Codable, Sendable, Equatable {
     public let duration: Double?
     public let webpageURL: String?
     public let entries: [Entry]?
+    /// Tek videoda kalite seçenekleri ve yaklaşık boyutları (aynı `-J` çıktısından); kuyruktaki öğenin boyutu
+    /// indirme başlamadan bununla gösterilir.
+    public var qualities: [QualityOption]? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, title, extractor, direct, duration, entries
@@ -55,7 +58,12 @@ public struct YtDlpAdapter: Sendable {
             throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
         }
         do {
-            return try JSONDecoder().decode(ProbeResult.self, from: Data(result.stdout.joined().utf8))
+            let data = Data(result.stdout.joined().utf8)
+            var probe = try JSONDecoder().decode(ProbeResult.self, from: data)
+            if !probe.isPlaylist, let formats = try? JSONDecoder().decode(FormatProbe.self, from: data) {
+                probe.qualities = QualityPlanner.options(from: formats)
+            }
+            return probe
         } catch {
             throw EngineError.invalidProbeOutput(String(describing: error))
         }

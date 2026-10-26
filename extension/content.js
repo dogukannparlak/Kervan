@@ -196,7 +196,7 @@
     menu.querySelector('.status')?.remove();
     if (reply?.title) menu.querySelector('.head').textContent = `Kalite seç · ${reply.title}`;
     const rows = reply?.ok ? reply.rows : [];
-    for (const row of rows) option(menu, row.label, row.detail, () => send(menu, { ...request, preset: row.preset }));
+    for (const row of rows) option(menu, row.label, row.detail, () => send(menu, { ...request, preset: row.preset, size: row.size }));
     if (!rows.length) {
       if (!reply?.ok) {
         const line = document.createElement('div');
