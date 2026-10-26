@@ -94,7 +94,11 @@ final class SystemProcess: RunningProcess, @unchecked Sendable {
         await withTaskGroup(of: Bool.self) { group in
             group.addTask { [exit] in _ = await exit.wait(); return true }
             group.addTask { try? await Task.sleep(for: grace); return false }
-            if await group.next() == false { kill(pid, SIGKILL) }
+            if await group.next() == false {
+                // Önce alt süreçler (ffmpeg): ebeveyn ölünce launchd'ye geçer ve yetim kalırlar.
+                for child in ChildRegistry.descendants(of: pid) { kill(child, SIGKILL) }
+                kill(pid, SIGKILL)
+            }
             group.cancelAll()
         }
     }

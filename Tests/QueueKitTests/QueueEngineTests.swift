@@ -285,6 +285,19 @@ func eventually(_ condition: @Sendable () async -> Bool) async -> Bool {
         #expect(try await add()?.filename == "Sayfa (2)")
         #expect(try await add()?.filename == "Sayfa (3)")
         #expect(try await add()?.title == "Sayfa (4)")
+
+        // Noktalı ad ilk noktadan kesilmez; yarım parça dosyası da adı tutar.
+        try Data().write(to: directory.appending(path: "Mr.mp4"))
+        try Data().write(to: directory.appending(path: "Dizi.f137.mp4.part"))
+        #expect(await engine.uniqueFilename("Mr. Robot", in: directory.path) == "Mr. Robot")
+        #expect(await engine.uniqueFilename("Dizi", in: directory.path) == "Dizi (2)")
+    }
+
+    @Test func actionWithUnknownIdChangesNothing() async throws {
+        let engine = try makeEngine(FakeExecutor())
+        let id = try await addURL(engine, "https://a.com/hang")[0].id!
+        await #expect(throws: QueueError.notFound(999)) { try await engine.apply(.pause, to: [id, 999]) }
+        #expect(await engine.item(id)?.state == .queued)
     }
 
     @Test func nonGenericSiteIgnoresFilenameHint() async throws {

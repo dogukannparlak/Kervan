@@ -20,6 +20,18 @@ import Testing
         #expect(ContinuousClock.now - start < .seconds(3))
     }
 
+    @Test func forcedStopAlsoKillsChildren() async throws {
+        // SIGINT'i yok sayan kabuk, altında uzun süren bir çocuk (yt-dlp → ffmpeg gibi).
+        let process = try SystemProcessRunner().start(URL(filePath: "/bin/sh"),
+                                                      arguments: ["-c", "trap '' INT; /bin/sleep 30 & echo $!; wait"], environment: [:])
+        var lines = process.output.makeAsyncIterator()
+        let child = try #require(await lines.next().flatMap { Int32($0.text) })
+        await process.terminate(grace: .milliseconds(300))
+        _ = await process.waitUntilExit()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(kill(child, 0) != 0)  // çocuk da durdu
+    }
+
     @Test func splitterHandlesChunkedInput() {
         let splitter = LineSplitter()
         #expect(splitter.feed(Data("ab".utf8)) == [])

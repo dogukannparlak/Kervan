@@ -125,6 +125,12 @@ public final class IPCServer: Sendable {
             case .setSettings:
                 guard let new = request.settings else { return .failure("settings alanı gerekli.") }
                 guard try PresetStore.named(new.defaultPreset) != nil else { throw QueueError.unknownPreset(new.defaultPreset) }
+                // Yazılamayan klasör ancak indirme başlayınca fark edilmesin.
+                let directory = new.normalized.downloadDirectory
+                try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+                guard FileManager.default.isWritableFile(atPath: directory) else {
+                    return .failure("İndirme klasörüne yazılamıyor: \(directory)")
+                }
                 try await settings.update(new)
                 return Response(ok: true, settings: settings.value)
             case .update:

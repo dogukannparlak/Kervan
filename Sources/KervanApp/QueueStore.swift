@@ -7,6 +7,8 @@ import QueueKit
 
 /// Uygulamanın kervand'a bakan yüzü. Kuyruğun sahibi servistir; burası yalnız gösterir ve komut gönderir.
 /// Abonelik ayrı bir iş parçacığında bloklayarak okunur, bağlantı koparsa 2 sn'de bir yeniden denenir.
+/// Önce abone olunur, sonra liste alınır: arada olan değişiklik kaçmaz. Olaylar ana kuyruğa sırayla
+/// (`DispatchQueue.main`, FIFO) verilir; liste en önce uygulanır, ardından bekleyen olaylar.
 @MainActor @Observable
 final class QueueStore {
     private(set) var items: [Int64: DownloadItem] = [:]
@@ -15,6 +17,8 @@ final class QueueStore {
     var settings = KervanSettings()
     private(set) var updateState = UpdateState()
     var message: String?
+    /// Pencerede ekleme sayfasıyla açılacak link (pano/menü çubuğundan gelen çok videolu sayfa).
+    var pendingAdd: String?
 
     var sorted: [DownloadItem] { items.values.sorted { ($0.id ?? 0) > ($1.id ?? 0) } }
     var active: [DownloadItem] { sorted.filter { $0.kind != .group && $0.state.isActive } }
@@ -26,19 +30,24 @@ final class QueueStore {
         guard !started else { return }
         started = true
         Thread.detachNewThread { [weak self] in
+            let store = self
             while true {
                 do {
+                    let events = try IPCClient()
+                    guard try events.request(Request(cmd: .subscribe)).ok else { throw SocketError.disconnected }
                     let client = try IPCClient()
                     let list = try client.request(Request(cmd: .list))
                     let settings = try client.request(Request(cmd: .settings))
                     let version = try client.request(Request(cmd: .ping)).version
-                    Task { @MainActor in self?.connectedWith(list.items ?? [], settings: settings, version: version) }
-                    try client.subscribe { event in
-                        Task { @MainActor in self?.apply(event) }
-                        return true
+                    DispatchQueue.main.async {
+                        MainActor.assumeIsolated { store?.connectedWith(list.items ?? [], settings: settings, version: version) }
+                    }
+                    while true {
+                        let event = try events.nextEvent()
+                        DispatchQueue.main.async { MainActor.assumeIsolated { store?.apply(event) } }
                     }
                 } catch {
-                    Task { @MainActor in self?.connected = false }
+                    DispatchQueue.main.async { MainActor.assumeIsolated { store?.connected = false } }
                 }
                 Thread.sleep(forTimeInterval: 2)
             }

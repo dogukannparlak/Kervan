@@ -24,9 +24,13 @@ public final class IPCClient {
         let ack = try request(Request(cmd: .subscribe))
         guard ack.ok else { throw SocketError.disconnected }
         while true {
-            let event = try connection.receive(Response.self)
-            if !handler(event) { return }
+            if !handler(try nextEvent()) { return }
         }
+    }
+
+    /// `subscribe` yanıtından sonra sıradaki değişiklik olayı (gelene kadar bloklar).
+    public func nextEvent() throws -> Response {
+        try connection.receive(Response.self)
     }
 
     /// Servis çalışıyor mu?

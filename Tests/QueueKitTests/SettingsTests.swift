@@ -73,6 +73,9 @@ import Testing
 
         let bad = await server.handle(Request(cmd: .setSettings, settings: { var s = settings; s.defaultPreset = "yok"; return s }()))
         #expect(!bad.ok)
+
+        let unwritable = await server.handle(Request(cmd: .setSettings, settings: { var s = settings; s.downloadDirectory = "/System/kervan"; return s }()))
+        #expect(!unwritable.ok && unwritable.error?.contains("yazılamıyor") == true)
     }
 }
 

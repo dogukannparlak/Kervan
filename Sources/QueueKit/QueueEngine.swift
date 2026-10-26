@@ -208,16 +208,18 @@ public actor QueueEngine {
         return .added(added.compactMap { $0.id }.compactMap { items[$0] }, notes: resolved.notes)
     }
 
-    /// Aynı klasörde aynı adlı dosya (uzantı ne olursa olsun) ya da kuyruk öğesi varsa " (2)", " (3)"… ekler.
-    /// Yoksa yt-dlp "zaten indirilmiş" deyip hiçbir şey indirmeden biter.
+    /// Aynı klasörde aynı adlı dosya (uzantı ne olursa olsun: "ad.mp4", "ad.f137.mp4.part") ya da kuyruk öğesi
+    /// varsa " (2)", " (3)"… ekler. Yoksa yt-dlp "zaten indirilmiş" deyip hiçbir şey indirmeden biter.
+    /// Ad noktadan kesilmez: "Mr. Robot" ile "Mr.mp4" çakışmaz.
     func uniqueFilename(_ name: String, in destination: String) -> String {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: destination)) ?? []
-        let taken = Set(files.map { String($0.prefix(while: { $0 != "." })) })
-            .union(files.map { ($0 as NSString).deletingPathExtension })
-            .union(items.values.filter { $0.destination == destination }.compactMap(\.filename))
+        let queued = Set(items.values.filter { $0.destination == destination }.compactMap(\.filename))
+        func isTaken(_ candidate: String) -> Bool {
+            queued.contains(candidate) || files.contains { $0 == candidate || $0.hasPrefix(candidate + ".") }
+        }
         var candidate = name
         var counter = 2
-        while taken.contains(candidate) {
+        while isTaken(candidate) {
             candidate = "\(name) (\(counter))"
             counter += 1
         }
@@ -243,6 +245,8 @@ public actor QueueEngine {
 
     /// Grup kimliği verilirse eylem çocuklarına uygulanır (uygun olmayanlar atlanır).
     public func apply(_ action: QueueAction, to ids: [Int64]) throws -> [DownloadItem] {
+        // Önce hepsi denetlenir: bulunmayan bir kimlik yüzünden yarısı uygulanıp "başarısız" dönmesin.
+        if let missing = ids.first(where: { items[$0] == nil }) { throw QueueError.notFound(missing) }
         var touched: [Int64] = []
         for id in ids {
             guard let item = items[id] else { throw QueueError.notFound(id) }

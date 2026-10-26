@@ -63,7 +63,8 @@ struct MenuBarView: View {
         Task {
             let response = await store.send(Request(cmd: .add, url: text, cookies: "auto"))
             if response.entries != nil {
-                store.message = "Çok videolu sayfa: seçmek için pencereden ekle."
+                store.pendingAdd = text
+                MainWindow.show()
             } else {
                 store.message = response.ok ? "Eklendi: \(response.items?.first?.displayTitle ?? text)" : response.error
             }

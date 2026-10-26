@@ -93,7 +93,10 @@ struct ClipboardSuggestion: View {
         Task {
             let response = await store.send(Request(cmd: .add, url: url.absoluteString, cookies: "auto", items: nil))
             if response.entries != nil {
-                status = "Çok videolu sayfa: pencereden ekle"
+                // Hangi videoların ineceği pencerede seçilir.
+                store.pendingAdd = url.absoluteString
+                MainWindow.show()
+                status = "Çok videolu sayfa: pencerede seç"
             } else {
                 status = response.ok ? "✓ Kuyrukta" : (response.error ?? "Eklenemedi")
             }

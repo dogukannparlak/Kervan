@@ -25,6 +25,7 @@ struct MainView: View {
     @State private var selection = Set<DownloadItem.ID>()
     @State private var filter = QueueFilter.all
     @State private var adding = false
+    @State private var addingURL = ""
 
     /// Playlist çocukları grubun hemen altında, girintili.
     private var rows: [DownloadItem] {
@@ -105,7 +106,10 @@ struct MainView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Button { adding = true } label: { Label("Ekle", systemImage: "plus") }
+                Button {
+                    addingURL = ""
+                    adding = true
+                } label: { Label("Ekle", systemImage: "plus") }
                     .keyboardShortcut("n")
                     .help("Link ekle (⌘N)")
             }
@@ -123,8 +127,18 @@ struct MainView: View {
                 .pickerStyle(.segmented)
             }
         }
-        .sheet(isPresented: $adding) { AddView().environment(store) }
+        .sheet(isPresented: $adding) { AddView(initialURL: addingURL).environment(store) }
+        .onAppear(perform: openPendingAdd)
+        .onChange(of: store.pendingAdd) { openPendingAdd() }
         .onDeleteCommand { run(.remove, on: selectedItems.filter { $0.actions.contains(.remove) }) }
+    }
+
+    /// Pano ya da menü çubuğundan gelen çok videolu sayfa: ekleme sayfası linkle açılır, seçim orada yapılır.
+    private func openPendingAdd() {
+        guard let link = store.pendingAdd else { return }
+        store.pendingAdd = nil
+        addingURL = link
+        adding = true
     }
 
     /// Seçili öğelerin hepsinde geçerli eylemler.

@@ -39,6 +39,30 @@ public enum ChildRegistry {
         return reaped
     }
 
+    /// Bir sürecin bütün alt süreçleri (yt-dlp'nin başlattığı ffmpeg gibi), tek bir süreç listesinden.
+    static func descendants(of root: Int32) -> [Int32] {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else { return [] }
+        let stride = MemoryLayout<kinfo_proc>.stride
+        var processes = [kinfo_proc](repeating: kinfo_proc(), count: size / stride + 32)
+        size = processes.count * stride
+        guard sysctl(&mib, 3, &processes, &size, nil, 0) == 0 else { return [] }
+        var children: [Int32: [Int32]] = [:]
+        for process in processes.prefix(size / stride) {
+            children[process.kp_eproc.e_ppid, default: []].append(process.kp_proc.p_pid)
+        }
+        var result: [Int32] = []
+        var pending = [root]
+        while let parent = pending.popLast() {
+            for child in children[parent] ?? [] where child != root && !result.contains(child) {
+                result.append(child)
+                pending.append(child)
+            }
+        }
+        return result
+    }
+
     static func processInfo(_ pid: Int32) -> (ppid: Int32, start: Int)? {
         var info = kinfo_proc()
         var size = MemoryLayout<kinfo_proc>.stride
