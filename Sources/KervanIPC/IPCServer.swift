@@ -140,7 +140,8 @@ public final class IPCServer: Sendable {
                 return .failure("subscribe burada işlenmez.")
             }
         } catch {
-            var response = Response.failure(String(describing: error))
+            var response = Response.failure(ErrorText.friendly(error))
+            response.detail = ErrorText.detail(error)
             if Self.needsLogin(error) { response.loginRequired = true }
             return response
         }

@@ -391,8 +391,9 @@ public actor QueueEngine {
             try? transition(&item, stopState)
         } else if let error {
             item.attempt += 1
-            item.lastError = String(describing: error)
-            logs?.append(id, "HATA (deneme \(item.attempt)/\(item.maxAttempts)): \(item.lastError ?? "")")
+            // Kullanıcıya Türkçe ve önerili metin; ham hata log'da.
+            item.lastError = ErrorText.friendly(error)
+            logs?.append(id, "HATA (deneme \(item.attempt)/\(item.maxAttempts)): \(String(describing: error))")
             if Self.isRetryable(error) && item.attempt < item.maxAttempts {
                 let delay = min(config.backoffCap, config.backoffBase * pow(2, Double(item.attempt - 1)))
                 item.nextAttemptAt = Date().addingTimeInterval(delay)

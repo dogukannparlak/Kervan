@@ -16,7 +16,10 @@ func connect() throws -> IPCClient {
 @discardableResult
 func send(_ request: Request, with client: IPCClient? = nil) throws -> Response {
     let response = try (client ?? connect()).request(request)
-    guard response.ok else { throw CLIError(response.error ?? "bilinmeyen hata") }
+    guard response.ok else {
+        let message = response.error ?? "bilinmeyen hata"
+        throw CLIError(response.detail.map { "\(message)\n  ayrıntı: \($0)" } ?? message)
+    }
     return response
 }
 

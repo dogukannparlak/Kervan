@@ -108,6 +108,8 @@ public struct Response: Codable, Sendable {
     public var update: UpdateState?
     /// Site giriş istedi; istemci kullanıcıya "tarayıcı çerezleriyle dene" sunabilir (`cookies: "fallback"`).
     public var loginRequired: Bool?
+    /// `error` Türkçeye çevrildiyse aracın ham hata metni.
+    public var detail: String?
 
     public init(ok: Bool, error: String? = nil, event: Bool? = nil, version: String? = nil, items: [DownloadItem]? = nil,
                 removed: [Int64]? = nil, title: String? = nil, entries: [ProbeResult.Entry]? = nil,
