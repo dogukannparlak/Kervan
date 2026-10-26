@@ -67,6 +67,6 @@ playlist çocuklarının linkleri yerel ağ için ayrıca denetlenmiyor.
 - [ ] Tarayıcı indirmelerini yakalama (eklentiye `downloads` izni)
 - [ ] Video indirmede paralel parça (`-N 4`), etkisi ölçülerek
 - [x] İnen dosyalara macOS karantina etiketi (Gatekeeper kontrolü) — `EngineCore/Quarantine.swift`
-- [ ] GitHub Actions: her push'ta `swift test` + `node --test extension/test/`
+- [x] GitHub Actions: her push'ta `swift test` + eklenti testleri (`.github/workflows/test.yml`)
 - [ ] Firefox/Safari çerezlerini dene, `cookies.txt` içe aktarma, elle User-Agent
 - [ ] M7 dağıtım: dmg + codesign + notarization (Apple Developer hesabı Doğukan'da)
