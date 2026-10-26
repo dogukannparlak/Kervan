@@ -370,6 +370,7 @@ public actor QueueEngine {
         case .log(let line):
             logs?.append(id, line.text)
         case .completed(let file):
+            Quarantine.mark(file)
             item.outputPath = file.path
             save(item, force: true)
         }

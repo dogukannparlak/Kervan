@@ -109,6 +109,7 @@ struct Get: AsyncParsableCommand {
             case .progress(let progress): renderer.update(progress)
             case .log(let line): if verbose { renderer.log(line.text) }
             case .completed(let file):
+                Quarantine.mark(file)
                 renderer.finish()
                 print("✓ \(file.path)")
             }

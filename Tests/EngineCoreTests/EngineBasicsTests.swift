@@ -28,6 +28,19 @@ import Testing
     }
 }
 
+@Suite struct QuarantineTests {
+    @Test func marksDownloadedFile() throws {
+        let file = FileManager.default.temporaryDirectory.appending(path: "kervan-q-\(UUID().uuidString).pkg")
+        try Data("x".utf8).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        #expect(Quarantine.value(of: file) == nil)
+        Quarantine.mark(file, now: Date(timeIntervalSince1970: 0x6700_0000))
+        let value = try #require(Quarantine.value(of: file))
+        #expect(value.hasPrefix("0081;67000000;Kervan;"))
+        Quarantine.mark(URL(filePath: "/yok/dosya"))  // çökmemeli
+    }
+}
+
 @Suite struct PresetTests {
     @Test func builtInPresetsLoad() throws {
         let presets = try PresetStore.builtIn()
