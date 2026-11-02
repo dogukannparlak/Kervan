@@ -136,6 +136,20 @@
     return element;
   }
 
+  /** Arka plana sorar. Eklenti yenilendiyse bu betik yetim kalır (sendMessage fırlatır) ya da yanıt gelmez: ikisi de hata yanıtı olur. */
+  async function ask(message) {
+    const orphan = { ok: false, error: 'Eklenti yenilendi. Bu sayfayı yenile (⌘R).' };
+    if (!chrome.runtime?.id) return orphan;
+    try {
+      return await Promise.race([
+        chrome.runtime.sendMessage(message),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: 'Kervan yanıt vermedi. Sayfayı yenile (⌘R).' }), 15000)),
+      ]);
+    } catch {
+      return orphan;
+    }
+  }
+
   function status(menu, text, isError = false) {
     menu.querySelectorAll('.status, button').forEach((node) => node.remove());
     const line = document.createElement('div');
@@ -173,11 +187,12 @@
   async function showMenu(video, button) {
     const menu = menuShell(button, 'Kervan');
     status(menu, 'Seçenekler hazırlanıyor…');
-    const reply = await chrome.runtime.sendMessage({
+    const reply = await ask({
       type: 'candidates', frameUrl: location.href, srcUrl: video.currentSrc || video.src || '',
     });
     if (!openMenu || openMenu.element !== menu) return;
     const options = reply?.options || [];
+    if (!options.length) return status(menu, reply?.error || 'İndirilebilir video bulunamadı.', true);
     const choose = (candidate) => (candidate.kind === 'file' ? send(menu, candidate.request) : showQualities(menu, candidate.request));
     if (options.length === 1) return choose(options[0]);
     menu.querySelector('.head').textContent = 'Kervan ile indir';
@@ -191,7 +206,7 @@
   async function showQualities(menu, request) {
     menu.querySelector('.head').textContent = 'Kalite seç';
     status(menu, 'Kaliteler alınıyor…');
-    const reply = await chrome.runtime.sendMessage({ type: 'qualities', request });
+    const reply = await ask({ type: 'qualities', request });
     if (!openMenu || openMenu.element !== menu) return;
     menu.querySelector('.status')?.remove();
     if (reply?.title) menu.querySelector('.head').textContent = `Kalite seç · ${reply.title}`;
@@ -216,7 +231,7 @@
 
   async function send(menu, request) {
     status(menu, 'Kuyruğa ekleniyor…');
-    const response = await chrome.runtime.sendMessage({ type: 'add', request });
+    const response = await ask({ type: 'add', request });
     if (!response?.ok && response?.loginRequired && request.cookies !== 'fallback') {
       status(menu, 'Site giriş istiyor.', true);
       option(menu, 'Tarayıcı çerezleriyle dene', 'Bu siteye tarayıcında giriş yaptıysan',

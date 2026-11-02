@@ -36,6 +36,9 @@ do {
         exit(0)
     }
 
+    // Köprü manifest'i silinmiş ya da tarayıcı sonradan kurulmuşsa kendiliğinden onar.
+    if let repaired = try? NativeHostManifest.install(paths: paths), !repaired.isEmpty { log("köprü manifest'i denetlendi: \(repaired.joined(separator: ", "))") }
+
     ChildRegistry.configure(file: paths.children)
     let reaped = ChildRegistry.reapOrphans()
     if !reaped.isEmpty { log("önceki çalışmadan kalan \(reaped.count) süreç durduruldu: \(reaped)") }

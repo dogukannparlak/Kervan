@@ -28,24 +28,7 @@ struct Extension: ParsableCommand {
             try? fileManager.removeItem(at: host)
             try fileManager.copyItem(at: source, to: host)
 
-            let manifest: [String: Any] = [
-                "name": KervanPaths.nativeHostName,
-                "description": "Kervan indirme yöneticisi köprüsü",
-                "path": host.path,
-                "type": "stdio",
-                "allowed_origins": ["chrome-extension://\(KervanPaths.extensionID)/"],
-            ]
-            let data = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-            let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            var installed: [String] = []
-            for browser in KervanPaths.browserDirectories {
-                let browserDir = support.appending(path: browser)
-                guard fileManager.fileExists(atPath: browserDir.path) else { continue }
-                let hosts = browserDir.appending(path: "NativeMessagingHosts")
-                try fileManager.createDirectory(at: hosts, withIntermediateDirectories: true)
-                try data.write(to: hosts.appending(path: "\(KervanPaths.nativeHostName).json"))
-                installed.append(browser)
-            }
+            let installed = try NativeHostManifest.install(paths: paths)
             guard !installed.isEmpty else { throw CLIError("Desteklenen tarayıcı bulunamadı (Brave, Chrome, Edge, Chromium, Vivaldi).") }
             print("✓ köprü kuruldu: \(installed.joined(separator: ", "))")
 

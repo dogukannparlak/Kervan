@@ -217,6 +217,7 @@ function fromExtensionPage(sender) {
 
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
   (async () => {
+    try {
     if (!message || typeof message !== 'object') return reply({ ok: false, error: 'Geçersiz istek.' });
     if (message.type === 'candidates' && sender.tab) {
       // Video üstü düğme (content.js) soruyor: bu sekmede neler indirilebilir?
@@ -244,6 +245,9 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       reply(await send({ cmd: 'list' }));
     } else {
       reply({ ok: false, error: 'Bilinmeyen istek.' });
+    }
+    } catch (error) {
+      reply({ ok: false, error: `Eklenti hatası: ${error.message}` });
     }
   })();
   return true;
