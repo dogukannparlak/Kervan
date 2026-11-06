@@ -13,7 +13,8 @@ public struct EngineExecutor: DownloadExecuting {
 
     public init(locator: ToolLocator) throws {
         guard let ytDlpPath = locator.locate(.ytDlp) else { throw EngineError.toolMissing(.ytDlp) }
-        ytDlp = YtDlpAdapter(executable: ytDlpPath, ffmpeg: locator.locate(.ffmpeg), environment: locator.environment)
+        ytDlp = YtDlpAdapter(executable: ytDlpPath, ffmpeg: locator.locate(.ffmpeg), environment: locator.environment,
+                          failureLog: FailureLog(url: FailureLog.defaultURL))
         aria2 = locator.locate(.aria2c).map { Aria2Adapter(executable: $0, environment: locator.environment) }
     }
 

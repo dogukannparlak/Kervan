@@ -241,7 +241,8 @@ struct Toolbox {
     init() throws {
         setvbuf(stdout, nil, _IOLBF, 0)  // pipe'ta da satır sırası stderr ile karışmasın
         guard let ytDlpPath = locator.locate(.ytDlp) else { throw EngineError.toolMissing(.ytDlp) }
-        ytDlp = YtDlpAdapter(executable: ytDlpPath, ffmpeg: locator.locate(.ffmpeg), environment: locator.environment)
+        ytDlp = YtDlpAdapter(executable: ytDlpPath, ffmpeg: locator.locate(.ffmpeg), environment: locator.environment,
+                          failureLog: FailureLog(url: FailureLog.defaultURL))
     }
 
     var resolver: LinkResolver { LinkResolver(ytDlp: ytDlp) }

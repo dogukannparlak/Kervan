@@ -141,6 +141,21 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
         }
     }
 
+    @Test func failureIsPersistedWithRedactedHeaders() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "kervan-flog-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = FailureLog(url: dir.appending(path: "hatalar.log"))
+        let lines = [OutputLine(.stderr, "ERROR: 'NoneType' object is not subscriptable")]
+        let adapter = YtDlpAdapter(executable: fakeYtDlp, ffmpeg: nil, runner: MockRunner(lines: lines, status: 1), environment: [:], failureLog: log)
+        let context = RequestContext(referer: "https://gizli.example/sayfa")
+        _ = try? await adapter.probe(URL(string: "https://example.com/v")!, context: context)
+        let text = try String(contentsOf: log.url, encoding: .utf8)
+        #expect(text.contains("'NoneType' object is not subscriptable"))
+        #expect(text.contains("çıkış 1"))
+        #expect(text.contains("Referer:***"))
+        #expect(!text.contains("gizli.example"))
+    }
+
     @Test func probeDecodesPlaylist() async throws {
         let json = #"{"_type":"playlist","title":"Liste","extractor":"youtube:tab","entries":[{"id":"a","title":"A","url":"https://y/a"},{"id":"b"}]}"#
         let adapter = YtDlpAdapter(executable: fakeYtDlp, ffmpeg: nil, runner: MockRunner(lines: [OutputLine(.stdout, json)], status: 0), environment: [:])

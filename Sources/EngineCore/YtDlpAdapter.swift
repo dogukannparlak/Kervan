@@ -42,8 +42,12 @@ public struct YtDlpAdapter: Sendable {
     let environment: [String: String]
     /// Aynı linkin `-J` çıktısı kısa süre saklanır: kalite listesi, sınıflandırma ve ekleme tek çıkarma yapar.
     let probeCache = ProbeCache()
+    /// nil ise hatalar kalıcı kayda yazılmaz (testler).
+    let failureLog: FailureLog?
 
-    public init(executable: URL, ffmpeg: URL?, runner: any ProcessRunning = SystemProcessRunner(), environment: [String: String]) {
+    public init(executable: URL, ffmpeg: URL?, runner: any ProcessRunning = SystemProcessRunner(), environment: [String: String],
+                failureLog: FailureLog? = nil) {
+        self.failureLog = failureLog
         self.executable = executable
         self.ffmpeg = ffmpeg
         self.runner = runner
@@ -75,6 +79,7 @@ public struct YtDlpAdapter: Sendable {
             let process = try runner.start(executable, arguments: args, environment: environment)
             let result = await process.collect()
             guard result.status == 0 else {
+                failureLog?.record(kind: "kalite/çözümleme", executable: executable, arguments: args, status: result.status, stderr: result.stderr)
                 throw EngineError.toolFailed(.ytDlp, status: result.status, message: Self.errorMessage(result.stderr))
             }
             return Data(result.stdout.joined().utf8)
@@ -109,6 +114,7 @@ public struct YtDlpAdapter: Sendable {
                     let status = await process.waitUntilExit()
                     try Task.checkCancellation()
                     guard status == 0 else {
+                        failureLog?.record(kind: "indirme", executable: executable, arguments: args, status: status, stderr: stderr)
                         throw EngineError.toolFailed(.ytDlp, status: status, message: Self.errorMessage(stderr))
                     }
                     guard completed > 0 else { throw EngineError.noOutputFile }
