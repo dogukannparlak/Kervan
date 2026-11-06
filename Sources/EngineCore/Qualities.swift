@@ -119,6 +119,7 @@ extension YtDlpAdapter {
         // Tarayıcıdaki izleme sayfası çoğu zaman `&list=` taşır (karışık liste); kalite için yalnız o video istenir.
         // Parametre yoksa çıktı `probe` ile aynıdır ve önbellekte paylaşılır.
         let hasList = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "list" } == true
+            || Self.isWatchWithList(url)
         let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context, singleVideo: hasList)
         do {
             let probe = try JSONDecoder().decode(FormatProbe.self, from: data)

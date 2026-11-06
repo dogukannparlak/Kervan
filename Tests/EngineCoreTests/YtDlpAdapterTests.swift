@@ -156,6 +156,16 @@ let preset1080 = Preset(id: "1080p", label: "", format: "bv*+ba/b", container: "
         #expect(!text.contains("gizli.example"))
     }
 
+    @Test func watchLinkWithListIsSingleVideo() {
+        func single(_ s: String) -> Bool { YtDlpAdapter.isWatchWithList(URL(string: s)!) }
+        #expect(single("https://www.youtube.com/watch?v=abc&list=RDabc&start_radio=1"))
+        #expect(single("https://music.youtube.com/watch?v=abc&list=RDAMVMabc"))
+        #expect(single("https://youtu.be/abc?list=RDabc"))
+        #expect(!single("https://www.youtube.com/playlist?list=PL123"))
+        #expect(!single("https://www.youtube.com/watch?v=abc"))
+        #expect(!single("https://example.com/watch?v=abc&list=x"))
+    }
+
     @Test func probeDecodesPlaylist() async throws {
         let json = #"{"_type":"playlist","title":"Liste","extractor":"youtube:tab","entries":[{"id":"a","title":"A","url":"https://y/a"},{"id":"b"}]}"#
         let adapter = YtDlpAdapter(executable: fakeYtDlp, ffmpeg: nil, runner: MockRunner(lines: [OutputLine(.stdout, json)], status: 0), environment: [:])

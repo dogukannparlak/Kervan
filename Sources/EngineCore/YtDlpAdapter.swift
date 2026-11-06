@@ -56,7 +56,7 @@ public struct YtDlpAdapter: Sendable {
 
     /// `cookiesFromBrowser`: yt-dlp `--cookies-from-browser` değeri (ör. "brave").
     public func probe(_ url: URL, cookiesFromBrowser: String? = nil, context: RequestContext = RequestContext()) async throws -> ProbeResult {
-        let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context)
+        let data = try await probeJSON(url, cookiesFromBrowser: cookiesFromBrowser, context: context, singleVideo: Self.isWatchWithList(url))
         do {
             var probe = try JSONDecoder().decode(ProbeResult.self, from: data)
             if !probe.isPlaylist, let formats = try? JSONDecoder().decode(FormatProbe.self, from: data) {
@@ -162,6 +162,15 @@ public struct YtDlpAdapter: Sendable {
 
     static func cookieArguments(_ browser: String?) -> [String] {
         browser.map { ["--cookies-from-browser", $0] } ?? []
+    }
+
+    /// Belirli bir videoyu açan izleme linki (`watch?v=…`) bir listeye de işaret ediyorsa (özellikle müzikte otomatik
+    /// "Mix" listesi, binlerce video) kullanıcı o videoyu ister: liste yerine tek video indirilir.
+    /// Gerçek liste sayfaları (`/playlist?list=…`, `v=` yok) etkilenmez.
+    static func isWatchWithList(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased(), host == "youtu.be" || host.hasSuffix("youtube.com") else { return false }
+        let names = Set(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.map(\.name) ?? [])
+        return names.contains("list") && (names.contains("v") || host == "youtu.be")
     }
 
     static func errorMessage(_ stderr: [String]) -> String {
